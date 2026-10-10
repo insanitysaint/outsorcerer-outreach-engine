@@ -1,0 +1,24 @@
+version: "3.8"
+
+# Self-hosted n8n for the Outreach Engine.
+# Start with: docker compose up -d
+# Then open http://localhost:5678 and create your owner account (first run only).
+#
+# This mounts a local "n8n-files" folder (next to this compose file) into the
+# container at /home/node/.n8n-files — that's the ONLY path n8n's file nodes
+# are allowed to read from by default (n8n's N8N_RESTRICT_FILE_ACCESS_TO
+# security setting). The two starter CSV files go there (see README).
+# It also mounts "n8n-data" so your workflows/credentials survive restarts.
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - TZ=UTC   # <- change to your timezone, e.g. Asia/Calcutta, Europe/London
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - ./n8n-data:/home/node/.n8n
+      - ./n8n-files:/home/node/.n8n-files

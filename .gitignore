@@ -1,0 +1,6 @@
+# NEVER upload these: they hold your passwords, encryption key and real customer data
+n8n-data/
+n8n-files/*.csv
+n8n-files/*.json
+.env
+*.env
