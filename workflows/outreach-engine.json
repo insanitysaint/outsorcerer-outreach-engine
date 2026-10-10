@@ -1,0 +1,1933 @@
+{
+ "name": "Outreach Engine (template)",
+ "nodes": [
+  {
+   "parameters": {
+    "formTitle": "Add leads to the inbox",
+    "formDescription": "Paste the table Perplexity or Gemini gave you (markdown table, CSV or tab-separated, with a header row such as Company, Website, Email, Location, Notes). New leads land in the review checkpoint; duplicates are skipped.",
+    "formFields": {
+     "values": [
+      {
+       "fieldLabel": "Source",
+       "fieldType": "dropdown",
+       "fieldOptions": {
+        "values": [
+         {
+          "option": "Perplexity"
+         },
+         {
+          "option": "Gemini"
+         },
+         {
+          "option": "Directory"
+         },
+         {
+          "option": "Manual"
+         }
+        ]
+       },
+       "requiredField": true
+      },
+      {
+       "fieldLabel": "Pasted leads",
+       "fieldType": "textarea",
+       "requiredField": true
+      }
+     ]
+    },
+    "options": {
+     "respondWithOptions": {
+      "values": {
+       "respondWith": "text",
+       "formSubmittedText": "Leads received. Open http://localhost:5678/webhook/lead-review to approve them."
+      }
+     }
+    }
+   },
+   "id": "9916818d-92f7-484c-8639-934f1f3042c7",
+   "name": "1 Intake - Lead Intake Form",
+   "type": "n8n-nodes-base.formTrigger",
+   "typeVersion": 2.2,
+   "position": [
+    240,
+    140
+   ],
+   "webhookId": "13a0b63b-31a4-4614-acda-dc4b239ac8c9"
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/lead_inbox.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "92ba9c21-c54a-41f8-a5a8-43bb0cc4fdc0",
+   "name": "1 Intake - Read Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    480,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "0f48dded-2e06-4405-99da-fc89d0e47058",
+   "name": "1 Intake - Parse Inbox",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    140
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "11550b06-d909-4b57-b5c8-d4537e2d4b70",
+   "name": "1 Intake - Read Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    960,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "7ab214c4-11d3-4301-b006-139f366548e1",
+   "name": "1 Intake - Parse Sent Log",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    1200,
+    140
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const COLS = ['lead_id','email','first_name','company','website','domain','location','angle','source','found_by','persona_score','status','added_date','decision_date','note'];\nconst FREE = new Set(['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','yahoo.in','rediffmail.com']);\nconst norm = (r) => { const o = {}; for (const c of COLS) { const v = r[c]; o[c] = (v === undefined || v === null) ? '' : String(v); } return o; };\nconst hostOf = (u) => { const m = String(u || '').trim().toLowerCase().match(/^(?:https?:\\/\\/)?(?:www\\.)?([a-z0-9][a-z0-9.-]*\\.[a-z]{2,})/); return m ? m[1] : ''; };\nconst emailDomain = (e) => { const m = String(e || '').toLowerCase().match(/@([a-z0-9.-]+\\.[a-z]{2,})$/); return m ? m[1] : ''; };\nconst todayStr = () => new Date().toISOString().slice(0, 10);\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\n\n// ---- Parse pasted Perplexity / Gemini / manual output and add NEW leads to the inbox ----\nconst form = $('1 Intake - Lead Intake Form').first().json;\nconst source = String(form['Source'] || 'Manual').trim();\nconst text = String(form['Pasted leads'] || '');\n\nconst inbox = $('1 Intake - Parse Inbox').all().map(i => clean(i.json)).filter(r => r && r.lead_id);\nconst sent = $('1 Intake - Parse Sent Log').all().map(i => clean(i.json)).filter(r => r && r.email);\n\n// ---- 1. Parse the pasted text (markdown table, CSV or TSV) ----\nfunction splitCsvLine(line, delim) {\n  const out = []; let cur = '', q = false;\n  for (let i = 0; i < line.length; i++) {\n    const ch = line[i];\n    if (q) { if (ch === '\"' && line[i + 1] === '\"') { cur += '\"'; i++; } else if (ch === '\"') q = false; else cur += ch; }\n    else if (ch === '\"') q = true;\n    else if (ch === delim) { out.push(cur); cur = ''; }\n    else cur += ch;\n  }\n  out.push(cur);\n  return out.map(s => s.trim());\n}\nconst lines = text.split(/\\r?\\n/).map(l => l.trim()).filter(Boolean);\nconst isSep = l => /^\\|?[\\s:\\-|]+\\|?$/.test(l) && l.includes('-');\nconst pipeMode = lines.some(l => l.startsWith('|'));\nlet delim = ',';\nif (!pipeMode && lines.length) delim = lines[0].includes('\\t') ? '\\t' : ',';\nconst table = [];\nfor (const l of lines) {\n  if (isSep(l)) continue;\n  if (pipeMode) {\n    if (!l.includes('|')) continue;\n    const cells = l.split('|').map(s => s.trim());\n    if (cells[0] === '') cells.shift();\n    if (cells.length && cells[cells.length - 1] === '') cells.pop();\n    table.push(cells);\n  } else {\n    table.push(splitCsvLine(l, delim));\n  }\n}\nif (table.length < 2) throw new Error('Could not find a table. Paste a header row plus at least one lead (markdown table, CSV or tab-separated).');\n\nconst hdr = table.shift().map(h => h.toLowerCase().replace(/[*_`#]/g, '').trim());\nconst find = (names, partial) => {\n  for (const n of names) { const i = hdr.indexOf(n); if (i >= 0) return i; }\n  if (partial) for (const p of partial) { const i = hdr.findIndex(h => h.includes(p)); if (i >= 0) return i; }\n  return -1;\n};\nconst col = {\n  company: find(['company', 'agency name', 'agency', 'business name', 'company name', 'business', 'name']),\n  website: find(['website', 'url', 'site', 'web', 'domain'], ['website', 'url']),\n  email: find(['email', 'public email', 'contact email', 'e-mail', 'email address'], ['email']),\n  first: find(['first name', 'first_name', 'contact name', 'primary contact', 'contact', 'founder', 'owner', 'decision maker']),\n  location: find(['location', 'country', 'city', 'region', 'hq', 'headquarters'], ['location', 'country']),\n  angle: find(['angle', 'suggested angle', 'why fit', 'why', 'fit', 'reason', 'notes', 'note'], ['why', 'fit', 'note']),\n  score: find(['score', 'lead score', 'fit score', 'persona score'], ['score']),\n};\nif (col.company < 0 && col.website < 0 && col.email < 0) {\n  throw new Error('No recognisable columns. The first row must contain headers such as: Company, Website, Email, Location, Notes. Found: ' + hdr.join(', '));\n}\nconst cell = (row, i) => (i >= 0 && i < row.length ? row[i] : '');\nconst stripMd = s => String(s || '').replace(/\\[(\\d+)\\]/g, '').replace(/\\[([^\\]]+)\\]\\((https?:[^)\\s]+)\\)/g, '$1').replace(/\\*\\*/g, '').replace(/\\s+/g, ' ').trim();\nconst getUrl = s => { s = String(s || ''); let m = s.match(/https?:\\/\\/[^\\s)\\]|]+/i); if (m) return m[0].replace(/[.,;]+$/, ''); m = s.match(/\\b(?:[a-z0-9-]+\\.)+[a-z]{2,}(?:\\/[^\\s)\\]|]*)?/i); return m ? m[0] : ''; };\nconst getEmail = s => { const m = String(s || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/); return m ? m[0].toLowerCase() : ''; };\n\n// ---- 2. Dedupe against the inbox and sent log ----\nconst byEmail = new Map(), byDomain = new Map();\nfor (const r of inbox) { if (r.email) byEmail.set(r.email.toLowerCase(), r); if (r.domain) byDomain.set(r.domain.toLowerCase(), r); }\nconst sentEmails = new Set(sent.map(r => r.email.toLowerCase()));\nconst sentDomains = new Set(sent.map(r => emailDomain(r.email)).filter(d => d && !FREE.has(d)));\n\nconst stats = { parsed: 0, added: 0, merged: 0, duplicate: 0, skipped: 0 };\nconst added = [];\nlet n = 0;\nfor (const row of table) {\n  stats.parsed++;\n  const company = stripMd(cell(row, col.company));\n  let website = getUrl(cell(row, col.website));\n  const email = getEmail(cell(row, col.email)) || getEmail(row.join(' '));\n  if (!website && col.website < 0) { const u = row.map(getUrl).find(x => x && !x.includes('@')); website = u || ''; }\n  if (!company && !website && !email) { stats.skipped++; continue; }\n  const siteHost = website ? hostOf(website) : '';\n  const eDom = emailDomain(email);\n  const domain = siteHost || (eDom && !FREE.has(eDom) ? eDom : '');\n\n  const existing = (email && byEmail.get(email)) || (domain && byDomain.get(domain));\n  const alreadySent = (email && sentEmails.has(email)) || (domain && sentDomains.has(domain));\n  if (alreadySent) { stats.duplicate++; continue; }\n  if (existing) {\n    const fb = existing.found_by || existing.source || '';\n    if (source && !fb.split('+').includes(source)) { existing.found_by = fb ? fb + '+' + source : source; stats.merged++; }\n    else stats.duplicate++;\n    if (!existing.email && email) { existing.email = email; if (existing.status === 'new' || existing.status === 'no_email') existing.status = 'review'; }\n    continue;\n  }\n  let score = parseFloat(String(cell(row, col.score)).replace(/[^0-9.]/g, ''));\n  if (!isNaN(score)) { if (score > 10) score = score / 10; score = Math.max(1, Math.min(10, Math.round(score))); } else score = '';\n  let first = stripMd(cell(row, col.first)).split(/[\\s,(]/)[0].replace(/[^A-Za-z\\u00C0-\\u024F'-]/g, '');\n  if (first && first.length < 2) first = '';\n  n++;\n  const rec = {\n    lead_id: 'L' + Date.now().toString(36) + n,\n    email, first_name: first, company: company || domain, website: website || '', domain,\n    location: stripMd(cell(row, col.location)), angle: stripMd(cell(row, col.angle)).slice(0, 200),\n    source, found_by: source, persona_score: score,\n    status: email ? 'review' : 'new', added_date: todayStr(), decision_date: '', note: '',\n  };\n  added.push(rec);\n  if (email) byEmail.set(email, rec);\n  if (domain) byDomain.set(domain, rec);\n  stats.added++;\n}\nconsole.log('Intake stats', JSON.stringify(stats));\nreturn [...inbox, ...added].map(r => ({ json: norm(r) }));\n"
+   },
+   "id": "e25c70f1-3fe5-42d1-87ec-e91b74dd0c20",
+   "name": "1 Intake - Parse & Dedupe",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1440,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {
+     "fileName": "lead_inbox.csv",
+     "headerRow": true
+    }
+   },
+   "id": "7bb10f5a-2ba5-4310-a84b-d765c22137e8",
+   "name": "1 Intake - Convert to CSV",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    1680,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/lead_inbox.csv",
+    "dataPropertyName": "data",
+    "options": {}
+   },
+   "id": "7e36b928-dc91-4c04-9471-7d312e60f422",
+   "name": "1 Intake - Write Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    1920,
+    140
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## 1 \u00b7 INTAKE\nPaste Perplexity / Gemini tables into the form (open the Form node \u2192 Test URL / Production URL). Duplicates are skipped; new leads go to the review checkpoint.",
+    "height": 120,
+    "width": 760,
+    "color": 4
+   },
+   "id": "81659127-dc94-469e-a15b-fa5b7de7780e",
+   "name": "Note 1 Intake",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    160,
+    0
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "4c9ca7bb-c633-49ab-a938-d513c4e72131",
+   "name": "2 Enrich - Run Manually",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    240,
+    700
+   ]
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "days",
+       "daysInterval": 1,
+       "triggerAtHour": 9
+      }
+     ]
+    }
+   },
+   "id": "f1d6bc2f-e355-4dd6-b677-495e8c8349d1",
+   "name": "2 Enrich - Daily 09:00",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    240,
+    900
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/lead_inbox.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "2d89d969-8d98-4283-bdd4-8fc286d92cad",
+   "name": "2 Enrich - Read Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    480,
+    800
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "32b9a529-9555-4e85-b771-9a203902c635",
+   "name": "2 Enrich - Parse Inbox",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    800
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const COLS = ['lead_id','email','first_name','company','website','domain','location','angle','source','found_by','persona_score','status','added_date','decision_date','note'];\nconst FREE = new Set(['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','yahoo.in','rediffmail.com']);\nconst norm = (r) => { const o = {}; for (const c of COLS) { const v = r[c]; o[c] = (v === undefined || v === null) ? '' : String(v); } return o; };\nconst hostOf = (u) => { const m = String(u || '').trim().toLowerCase().match(/^(?:https?:\\/\\/)?(?:www\\.)?([a-z0-9][a-z0-9.-]*\\.[a-z]{2,})/); return m ? m[1] : ''; };\nconst emailDomain = (e) => { const m = String(e || '').toLowerCase().match(/@([a-z0-9.-]+\\.[a-z]{2,})$/); return m ? m[1] : ''; };\nconst todayStr = () => new Date().toISOString().slice(0, 10);\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\n\n// ---- Find public contact emails on each agency's own site and give a persona-fit score ----\nconst MAX_PER_RUN = 12;          // keep each run short and polite\nconst PAGES = ['', '/contact', '/contact-us', '/about', '/about-us'];\nconst TARGET_LOC = /(uae|dubai|abu dhabi|sharjah|saudi|ksa|riyadh|jeddah|oman|muscat|qatar|doha|kuwait|bahrain|united kingdom|\\buk\\b|london|manchester|leeds|australia|sydney|melbourne|canada|toronto|usa|united states|new york|singapore)/i;\nconst SERVICE = /(web design|web development|website|wordpress|shopify|seo|ui\\/ux|ux design|app development|mobile app|digital marketing|branding)/i;\nconst BIG = /(wpp|ogilvy|publicis|omnicom|dentsu|havas|leo burnett|vmly|mccann|saatchi)/i;\nconst BAD_EMAIL = /(\\.(png|jpe?g|gif|svg|webp|css|js)$|sentry|wixpress|example\\.|domain\\.com|yourname|your@|name@|user@|noreply|no-reply|donotreply|@2x|u003e)/i;\nconst GENERIC = /^(info|hello|hi|contact|sales|office|team|support|admin|enquiries|enquiry|mail|business|marketing|connect|care)@/i;\n\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst rows = $input.all().map(i => clean(i.json)).filter(r => r && r.lead_id);\n\nconst needsWork = r => (r.status === 'new' && r.website) || (!r.persona_score && r.website && r.status !== 'rejected' && r.status !== 'sent');\nlet processed = 0;\nfor (const r of rows) {\n  if (processed >= MAX_PER_RUN) break;\n  if (!needsWork(r)) { continue; }\n  processed++;\n  const base = /^https?:\\/\\//i.test(r.website) ? r.website.replace(/\\/+$/, '') : 'https://' + r.website.replace(/\\/+$/, '');\n  const om = base.match(/^https?:\\/\\/[^\\/?#\\s]+/i);\n  const origin = om ? om[0] : base;\n  const host = hostOf(base);\n  let allText = '';\n  const found = new Map();\n  for (const p of PAGES) {\n    if (r.email && r.persona_score && p) break;\n    try {\n      const body = await this.helpers.httpRequest({ method: 'GET', url: origin + p, timeout: 8000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OutreachResearch/1.0)' }, json: false });\n      const html = typeof body === 'string' ? body : JSON.stringify(body);\n      allText += ' ' + html.replace(/<script[\\s\\S]*?<\\/script>|<style[\\s\\S]*?<\\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').slice(0, 20000);\n      const decoded = html.replace(/\\s*\\[\\s*at\\s*\\]\\s*|\\s*\\(\\s*at\\s*\\)\\s*/gi, '@').replace(/mailto:/gi, ' ');\n      for (const m of decoded.matchAll(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g)) {\n        const e = m[0].toLowerCase();\n        if (BAD_EMAIL.test(e)) continue;\n        if (!found.has(e)) found.set(e, p);\n      }\n    } catch (e) { /* page missing or blocked: skip */ }\n    await sleep(700);\n    if (found.size && p) break;\n  }\n  // pick best email: same-domain first, named persons over generic inboxes\n  if (!r.email && found.size) {\n    const list = [...found.keys()];\n    const sameDom = list.filter(e => emailDomain(e) === host || host.endsWith(emailDomain(e)) || emailDomain(e).endsWith(host));\n    const pool = sameDom.length ? sameDom : list;\n    pool.sort((a, b) => (GENERIC.test(a) ? 1 : 0) - (GENERIC.test(b) ? 1 : 0));\n    r.email = pool[0];\n  }\n  if (r.status === 'new') r.status = r.email ? 'review' : 'no_email';\n  if (!r.persona_score) {\n    let s = 3;\n    const loc = (r.location || '') + ' ' + allText.slice(0, 3000);\n    if (TARGET_LOC.test(r.location || '') || TARGET_LOC.test(loc)) s += 2;\n    if (SERVICE.test(allText)) s += 2;\n    if (/(agency|studio|consultancy|consulting)/i.test(allText + ' ' + r.company)) s += 1;\n    if (/(our team|founder|founded|since 20)/i.test(allText)) s += 1;\n    if (BIG.test(r.company + ' ' + host)) s -= 3;\n    r.persona_score = String(Math.max(1, Math.min(10, s)));\n  }\n  r.note = (r.note ? r.note + ' | ' : '') + 'enriched ' + todayStr();\n}\nconsole.log('Enriched', processed, 'leads');\nreturn rows.map(r => ({ json: norm(r) }));\n"
+   },
+   "id": "676e5a0c-b035-492f-a7e1-930acc896ed3",
+   "name": "2 Enrich - Find Emails & Score",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    960,
+    800
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {
+     "fileName": "lead_inbox.csv",
+     "headerRow": true
+    }
+   },
+   "id": "6b01255f-6328-42c7-8836-48d0090c9950",
+   "name": "2 Enrich - Convert to CSV",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    1200,
+    800
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/lead_inbox.csv",
+    "dataPropertyName": "data",
+    "options": {}
+   },
+   "id": "f20419c2-2f75-4176-96c6-ef1d6596b409",
+   "name": "2 Enrich - Write Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    1440,
+    800
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## 2 \u00b7 ENRICH\nRuns daily 09:00 (or click Test workflow). Visits each new lead's own site, finds a public contact email and scores persona fit 1-10.",
+    "height": 120,
+    "width": 760,
+    "color": 4
+   },
+   "id": "729b8313-3a29-4c0e-9aeb-5701be6a41ae",
+   "name": "Note 2 Enrich",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    160,
+    560
+   ]
+  },
+  {
+   "parameters": {
+    "path": "lead-review",
+    "httpMethod": "GET",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "id": "1e81895d-35c9-4abf-aa89-94492d3de440",
+   "name": "3 Review - Review Page",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    240,
+    1460
+   ],
+   "webhookId": "a10cb07b-5954-470a-a8ef-e305afe60c36"
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/lead_inbox.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "9d02f196-3f4e-42e6-908b-73b390bb265d",
+   "name": "3 Review - Read Inbox (page)",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    480,
+    1460
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "2380f90e-a094-48cf-8295-bd7a0d04078b",
+   "name": "3 Review - Parse Inbox (page)",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    1460
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const COLS = ['lead_id','email','first_name','company','website','domain','location','angle','source','found_by','persona_score','status','added_date','decision_date','note'];\nconst FREE = new Set(['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','yahoo.in','rediffmail.com']);\nconst norm = (r) => { const o = {}; for (const c of COLS) { const v = r[c]; o[c] = (v === undefined || v === null) ? '' : String(v); } return o; };\nconst hostOf = (u) => { const m = String(u || '').trim().toLowerCase().match(/^(?:https?:\\/\\/)?(?:www\\.)?([a-z0-9][a-z0-9.-]*\\.[a-z]{2,})/); return m ? m[1] : ''; };\nconst emailDomain = (e) => { const m = String(e || '').toLowerCase().match(/@([a-z0-9.-]+\\.[a-z]{2,})$/); return m ? m[1] : ''; };\nconst todayStr = () => new Date().toISOString().slice(0, 10);\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\n\n// ---- Build the Review (human checkpoint) page ----\nconst rows = $input.all().map(i => clean(i.json)).filter(r => r && r.lead_id);\nconst esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nconst count = st => rows.filter(r => r.status === st).length;\nconst review = rows.filter(r => r.status === 'review' && r.email)\n  .sort((a, b) => (parseFloat(b.persona_score) || 0) - (parseFloat(a.persona_score) || 0));\nconst approved = count('approved');\nconst SHOW = 40;\nconst shown = review.slice(0, SHOW);\nconst siteLink = r => r.website ? `<a href=\"${esc(/^https?:/i.test(r.website) ? r.website : 'https://' + r.website)}\" target=\"_blank\" rel=\"noopener\">${esc(r.domain || r.website)}</a>` : esc(r.domain || '');\nconst scoreChip = r => { const s = parseFloat(r.persona_score); if (isNaN(s)) return '<span class=\"chip\">\u2013</span>'; const c = s >= 8 ? 'hi' : s >= 6 ? 'mid' : 'lo'; return `<span class=\"chip ${c}\">${s}</span>`; };\nconst body = shown.map(r => `\n<tr>\n  <td><strong>${esc(r.company)}</strong><br><span class=\"muted\">${siteLink(r)}</span></td>\n  <td>${esc(r.email)}<br><span class=\"muted\">${esc(r.first_name || '')}</span></td>\n  <td>${esc(r.location)}<br><span class=\"muted\">${esc(r.angle)}</span></td>\n  <td>${esc(r.found_by || r.source)}${(r.found_by || '').includes('+') ? ' <span class=\"chip hi\">both</span>' : ''}</td>\n  <td>${scoreChip(r)}</td>\n  <td class=\"act\"><a class=\"btn ok\" href=\"lead-decide?d=approve&id=${encodeURIComponent(r.lead_id)}\">Approve</a> <a class=\"btn no\" href=\"lead-decide?d=reject&id=${encodeURIComponent(r.lead_id)}\">Reject</a></td>\n</tr>`).join('');\nconst html = `<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Lead Review</title>\n<style>\nbody{font-family:system-ui,Segoe UI,Arial,sans-serif;margin:0;background:#f6f7f9;color:#1c2330}\n.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}\nh1{font-size:22px;margin:0 0 4px}\n.sub{color:#5b6475;margin:0 0 16px}\n.stats{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}\n.stat{background:#fff;border:1px solid #e3e6ec;border-radius:10px;padding:10px 14px;min-width:110px}\n.stat b{display:block;font-size:20px}\n.bulk{background:#fff;border:1px solid #e3e6ec;border-radius:10px;padding:12px 14px;margin:12px 0}\ntable{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e6ec;border-radius:10px;overflow:hidden}\nth,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid #eef0f4;font-size:14px}\nth{background:#fafbfc;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#5b6475}\n.muted{color:#6b7385;font-size:12px}\n.btn{display:inline-block;padding:6px 12px;border-radius:7px;text-decoration:none;font-size:13px;font-weight:600;border:1px solid transparent}\n.ok{background:#e6f6ec;color:#12683a;border-color:#bfe5cd}\n.no{background:#fdeaea;color:#a02222;border-color:#f3c6c6}\n.chip{display:inline-block;min-width:22px;text-align:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;background:#eef0f4}\n.chip.hi{background:#e6f6ec;color:#12683a}.chip.mid{background:#fff4d6;color:#8a5a00}.chip.lo{background:#fdeaea;color:#a02222}\n.act{white-space:nowrap}\n@media(max-width:760px){th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4){display:none}}\n</style></head><body><div class=\"wrap\">\n<h1>Lead review checkpoint</h1>\n<p class=\"sub\">Nothing is emailed until you approve it here. Approved leads join the daily sending queue.</p>\n<div class=\"stats\">\n <div class=\"stat\"><b>${review.length}</b>waiting for review</div>\n <div class=\"stat\"><b>${approved}</b>approved queue</div>\n <div class=\"stat\"><b>${Math.floor(approved / 10)}</b>days of sending at 10/day</div>\n <div class=\"stat\"><b>${count('new')}</b>need an email (enrich)</div>\n <div class=\"stat\"><b>${count('no_email')}</b>no email found</div>\n <div class=\"stat\"><b>${count('sent')}</b>sent</div>\n <div class=\"stat\"><b>${count('rejected')}</b>rejected</div>\n</div>\n<div class=\"bulk\"><strong>Bulk:</strong>\n <a class=\"btn ok\" href=\"lead-decide?bulk=approve&min=9\">Approve all score 9+</a>\n <a class=\"btn ok\" href=\"lead-decide?bulk=approve&min=8\">Approve all 8+</a>\n <a class=\"btn ok\" href=\"lead-decide?bulk=approve&min=7\">Approve all 7+</a>\n <a class=\"btn no\" href=\"lead-decide?bulk=reject&max=3\">Reject all score 3 or below</a>\n <a class=\"btn\" href=\"lead-review\">Refresh</a></div>\n${shown.length ? `<table><thead><tr><th>Agency</th><th>Contact</th><th>Fit</th><th>Source</th><th>Score</th><th>Decision</th></tr></thead><tbody>${body}</tbody></table>\n<p class=\"muted\">Showing top ${shown.length} of ${review.length}, highest score first.</p>` : '<p><strong>Inbox is clear.</strong> Add more leads with the Lead Intake form or run the Enrich workflow.</p>'}\n</div></body></html>`;\nreturn [{ json: { html } }];\n"
+   },
+   "id": "06134f58-9cb5-4251-a0cc-f97e79a21357",
+   "name": "3 Review - Build Review Page",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    960,
+    1460
+   ]
+  },
+  {
+   "parameters": {
+    "respondWith": "text",
+    "responseBody": "={{ $json.html }}",
+    "options": {
+     "responseHeaders": {
+      "entries": [
+       {
+        "name": "Content-Type",
+        "value": "text/html; charset=utf-8"
+       }
+      ]
+     }
+    }
+   },
+   "id": "26617080-01de-4f14-94ce-d763e4a78b24",
+   "name": "3 Review - Show Page",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    1200,
+    1460
+   ]
+  },
+  {
+   "parameters": {
+    "path": "lead-decide",
+    "httpMethod": "GET",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "id": "9839f7ba-3712-4884-8d4d-bd4eede04be4",
+   "name": "3 Review - Decide Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    240,
+    1720
+   ],
+   "webhookId": "02441b2d-e04b-40ad-afaa-4a8c2b5c450f"
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/lead_inbox.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "7e67d08c-1f39-4ba1-a33f-608227982e5a",
+   "name": "3 Review - Read Inbox (decide)",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    480,
+    1720
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "0996d319-7c66-4d4c-952b-7857b6db183c",
+   "name": "3 Review - Parse Inbox (decide)",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    1720
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const COLS = ['lead_id','email','first_name','company','website','domain','location','angle','source','found_by','persona_score','status','added_date','decision_date','note'];\nconst FREE = new Set(['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','yahoo.in','rediffmail.com']);\nconst norm = (r) => { const o = {}; for (const c of COLS) { const v = r[c]; o[c] = (v === undefined || v === null) ? '' : String(v); } return o; };\nconst hostOf = (u) => { const m = String(u || '').trim().toLowerCase().match(/^(?:https?:\\/\\/)?(?:www\\.)?([a-z0-9][a-z0-9.-]*\\.[a-z]{2,})/); return m ? m[1] : ''; };\nconst emailDomain = (e) => { const m = String(e || '').toLowerCase().match(/@([a-z0-9.-]+\\.[a-z]{2,})$/); return m ? m[1] : ''; };\nconst todayStr = () => new Date().toISOString().slice(0, 10);\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\n\n// ---- Apply a Review decision (single lead or bulk) ----\nconst q = $('3 Review - Decide Webhook').first().json.query || {};\nconst rows = $input.all().map(i => clean(i.json)).filter(r => r && r.lead_id);\nconst today = todayStr();\nlet changed = 0;\nif (q.id && q.d) {\n  const map = { approve: 'approved', reject: 'rejected', undo: 'review', skip: 'review' };\n  const to = map[String(q.d)];\n  if (to) for (const r of rows) {\n    if (r.lead_id === q.id && ['review', 'approved', 'rejected', 'new', 'no_email'].includes(r.status)) {\n      if (to === 'approved' && !r.email) continue;\n      r.status = to; r.decision_date = today; changed++;\n    }\n  }\n} else if (q.bulk === 'approve' && q.min) {\n  const min = parseFloat(q.min);\n  for (const r of rows) if (r.status === 'review' && r.email && parseFloat(r.persona_score) >= min) { r.status = 'approved'; r.decision_date = today; changed++; }\n} else if (q.bulk === 'reject' && q.max) {\n  const max = parseFloat(q.max);\n  for (const r of rows) if (r.status === 'review' && r.persona_score !== '' && parseFloat(r.persona_score) <= max) { r.status = 'rejected'; r.decision_date = today; changed++; }\n}\nconsole.log('Review decisions applied:', changed);\nreturn rows.map(r => ({ json: norm(r) }));\n"
+   },
+   "id": "1b0fb90b-907a-4b58-ba90-4fa26db715e5",
+   "name": "3 Review - Apply Decision",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    960,
+    1720
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {
+     "fileName": "lead_inbox.csv",
+     "headerRow": true
+    }
+   },
+   "id": "10722d60-2f68-4f2c-b9ea-9ee2fe2dbece",
+   "name": "3 Review - Convert to CSV",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    1200,
+    1720
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/lead_inbox.csv",
+    "dataPropertyName": "data",
+    "options": {}
+   },
+   "id": "e48512c5-c370-46d4-aa12-f292e958d104",
+   "name": "3 Review - Write Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    1440,
+    1720
+   ]
+  },
+  {
+   "parameters": {
+    "respondWith": "redirect",
+    "redirectURL": "http://localhost:5678/webhook/lead-review",
+    "options": {}
+   },
+   "id": "37d3af55-8a6b-49bd-bc04-181398050787",
+   "name": "3 Review - Back To Review",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    1680,
+    1720
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## 3 \u00b7 REVIEW CHECKPOINT (human in the loop)\nOpen http://localhost:5678/webhook/lead-review to approve / reject leads. Nothing is emailed until approved here.",
+    "height": 120,
+    "width": 760,
+    "color": 4
+   },
+   "id": "f90e7d26-5a30-4c30-83db-7b8516a47d12",
+   "name": "Note 3 Review",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    160,
+    1320
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "c027fed1-9d60-4c59-bcb9-2f8a56ff5b94",
+   "name": "4 Sender - Run Manually",
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1,
+   "position": [
+    240,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "cronExpression",
+       "expression": "0 11 * * 1-5"
+      }
+     ]
+    }
+   },
+   "id": "07748346-ca31-4231-b984-c511a4c4521a",
+   "name": "4 Sender - Weekdays 11:00",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    240,
+    2480
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/lead_inbox.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "928708c4-746e-4512-bb61-18d849bb7c24",
+   "name": "4 Sender - Read Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    480,
+    2380
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "76aeaa63-e399-4cdf-8118-ca5fdc908348",
+   "name": "4 Sender - Parse Inbox",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    2380
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "101ee369-f951-478f-abd9-06d01810d16f",
+   "name": "4 Sender - Read Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    960,
+    2380
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "243072ac-ca18-40fe-aa91-480f34dfee5b",
+   "name": "4 Sender - Parse Sent Log",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    1200,
+    2380
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const COLS = ['lead_id','email','first_name','company','website','domain','location','angle','source','found_by','persona_score','status','added_date','decision_date','note'];\nconst FREE = new Set(['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','yahoo.in','rediffmail.com']);\nconst norm = (r) => { const o = {}; for (const c of COLS) { const v = r[c]; o[c] = (v === undefined || v === null) ? '' : String(v); } return o; };\nconst hostOf = (u) => { const m = String(u || '').trim().toLowerCase().match(/^(?:https?:\\/\\/)?(?:www\\.)?([a-z0-9][a-z0-9.-]*\\.[a-z]{2,})/); return m ? m[1] : ''; };\nconst emailDomain = (e) => { const m = String(e || '').toLowerCase().match(/@([a-z0-9.-]+\\.[a-z]{2,})$/); return m ? m[1] : ''; };\nconst todayStr = () => new Date().toISOString().slice(0, 10);\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\n\n// ================== SETTINGS: edit these before going live ==================\nconst TEST_MODE = true;                 // true = every email goes ONLY to TEST_ADDRESS and nothing is logged as sent\nconst TEST_ADDRESS = '';                // <-- your own email for test sends (required while TEST_MODE is true)\nconst TEST_COUNT = 2;                   // how many sample emails to send in test mode\nconst DAILY_LIMIT = 10;                 // real sends per day\nconst SENDER_NAME = '[YOUR NAME]';\nconst SENDER_ROLE = '[YOUR ROLE]';\nconst SENDER_COMPANY = '[YOUR COMPANY]';\nconst SERVICE_LINE = '[ONE SENTENCE: what your team does, e.g. \"We build websites for agencies under their own brand.\"]';\nconst OFFER = '[ONE-SENTENCE OFFER: what you deliver, for whom, and the price/turnaround hook]';\n// ============================================================================\n\nconst rows = $('4 Sender - Parse Inbox').all().map(i => clean(i.json)).filter(r => r && r.lead_id);\nconst sent = $('4 Sender - Parse Sent Log').all().map(i => clean(i.json)).filter(r => r && r.email);\nconst sentSet = new Set(sent.map(r => r.email.toLowerCase()));\nconst sentToday = sent.filter(r => r.sent_date === todayStr()).length;\n\nif (TEST_MODE && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(TEST_ADDRESS)) {\n  throw new Error('TEST_MODE is on: set TEST_ADDRESS (your own email) in this node first.');\n}\nconst placeholders = [SENDER_NAME, SENDER_ROLE, SENDER_COMPANY, SERVICE_LINE, OFFER].some(v => v.includes('['));\nif (!TEST_MODE && placeholders) {\n  throw new Error('Fill in SENDER_NAME, SENDER_ROLE, SENDER_COMPANY, SERVICE_LINE and OFFER before sending to real leads.');\n}\n\nconst remaining = TEST_MODE ? TEST_COUNT : Math.max(0, DAILY_LIMIT - sentToday);\nconst queue = rows\n  .filter(r => r.status === 'approved' && r.email && !sentSet.has(r.email.toLowerCase()))\n  .sort((a, b) => (parseFloat(b.persona_score) || 0) - (parseFloat(a.persona_score) || 0))\n  .slice(0, remaining);\n\nconst out = queue.map(r => {\n  const first = r.first_name ? r.first_name : 'there';\n  const subject = `Overflow design/dev capacity for ${r.company}`;\n  const html = `<p>Hi ${first},</p>\n<p>I'm ${SENDER_NAME} (${SENDER_ROLE}, ${SENDER_COMPANY}). ${SERVICE_LINE}</p>\n<p>${OFFER}</p>\n<p>If ${r.company} ever has overflow work or a project you'd rather not staff in-house, I'd be glad to do a small free sample so you can judge the quality first. Worth a quick reply?</p>\n<p>Best,<br>${SENDER_NAME}<br>${SENDER_ROLE}, ${SENDER_COMPANY} | [YOUR WEBSITE]</p>\n<p style=\"color:#777;font-size:12px\">You're receiving this because ${r.company} is listed as a digital agency. If you'd rather not hear from us, just reply \"no\" and I won't contact you again.</p>`;\n  return { json: { lead_id: r.lead_id, email: r.email, company: r.company, first_name: r.first_name || '', testMode: TEST_MODE, to: TEST_MODE ? TEST_ADDRESS : r.email, subject: (TEST_MODE ? `[TEST for ${r.email}] ` : '') + subject, html } };\n});\nconsole.log('Batch size', out.length, 'sentToday', sentToday, 'testMode', TEST_MODE);\nreturn out;\n"
+   },
+   "id": "df38ef14-49bc-49bb-96ad-8a35c320703f",
+   "name": "4 Sender - Pick Todays Batch (EDIT SETTINGS)",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1440,
+    2380
+   ]
+  },
+  {
+   "parameters": {
+    "batchSize": 1,
+    "options": {}
+   },
+   "id": "025b9db6-8a4d-4b2e-b781-f793acfb3679",
+   "name": "4 Sender - Loop Over Leads",
+   "type": "n8n-nodes-base.splitInBatches",
+   "typeVersion": 3,
+   "position": [
+    1440,
+    2380
+   ]
+  },
+  {
+   "parameters": {
+    "fromEmail": "you@your-domain.com",
+    "toEmail": "={{ $json.to }}",
+    "subject": "={{ $json.subject }}",
+    "emailFormat": "html",
+    "html": "={{ $json.html }}",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "id": "fd6b2abf-ebc8-4512-9c9d-a73659999e0a",
+   "name": "4 Sender - Send Email (SMTP)",
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    1680,
+    2280
+   ],
+   "credentials": {
+    "smtp": {
+     "id": "",
+     "name": "SMTP account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "amount": 4,
+    "unit": "seconds"
+   },
+   "id": "6c2621ef-3d39-4e46-aa27-ad3488601b85",
+   "name": "4 Sender - Wait Between Sends",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    1920,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "5cdf62da-20e7-4baa-bc13-3a2d1bb6c71e",
+   "name": "4 Sender - Read Sent Log (log)",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    2160,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "c9a33dd3-a8d6-4c6f-a5d7-e66508fd5220",
+   "name": "4 Sender - Parse Sent Log (log)",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    2400,
+    2280
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const COLS = ['lead_id','email','first_name','company','website','domain','location','angle','source','found_by','persona_score','status','added_date','decision_date','note'];\nconst FREE = new Set(['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','yahoo.in','rediffmail.com']);\nconst norm = (r) => { const o = {}; for (const c of COLS) { const v = r[c]; o[c] = (v === undefined || v === null) ? '' : String(v); } return o; };\nconst hostOf = (u) => { const m = String(u || '').trim().toLowerCase().match(/^(?:https?:\\/\\/)?(?:www\\.)?([a-z0-9][a-z0-9.-]*\\.[a-z]{2,})/); return m ? m[1] : ''; };\nconst emailDomain = (e) => { const m = String(e || '').toLowerCase().match(/@([a-z0-9.-]+\\.[a-z]{2,})$/); return m ? m[1] : ''; };\nconst todayStr = () => new Date().toISOString().slice(0, 10);\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\n\n// ---- Record the email that was just sent: append to sent_log.csv ----\nconst SENT_COLS = ['email','company','first_name','sent_date','follow_up_1_sent','replied','replied_date'];\nconst cur = $('4 Sender - Loop Over Leads').first().json;\nconst rows = $input.all().map(i => clean(i.json)).filter(r => r && r.email);\nif (!cur.testMode && !rows.some(r => r.email.toLowerCase() === cur.email.toLowerCase())) {\n  rows.push({ email: cur.email, company: cur.company, first_name: cur.first_name, sent_date: new Date().toISOString().slice(0, 10), follow_up_1_sent: '', replied: '', replied_date: '' });\n}\nconst outRows = rows.length ? rows : [{}];\nreturn outRows.map(r => { const o = {}; for (const c of SENT_COLS) o[c] = r[c] == null ? '' : String(r[c]); return { json: o }; });\n"
+   },
+   "id": "4d85f1ab-f249-45ad-8293-e730e4632799",
+   "name": "4 Sender - Append To Sent Log",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2640,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {
+     "fileName": "sent_log.csv",
+     "headerRow": true
+    }
+   },
+   "id": "197adb84-55b4-4788-ad49-d6ab2f58d223",
+   "name": "4 Sender - Convert Sent Log",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    2880,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/sent_log.csv",
+    "dataPropertyName": "data",
+    "options": {}
+   },
+   "id": "44321102-149a-4c51-a580-7fe27402c749",
+   "name": "4 Sender - Write Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    3120,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/lead_inbox.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "5f972ef0-0281-42a5-93bb-d4d197dadca7",
+   "name": "4 Sender - Read Inbox (mark)",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    3360,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "e4312e67-2433-4ad8-b5d0-bdd8e7c3897b",
+   "name": "4 Sender - Parse Inbox (mark)",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    3600,
+    2280
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const COLS = ['lead_id','email','first_name','company','website','domain','location','angle','source','found_by','persona_score','status','added_date','decision_date','note'];\nconst FREE = new Set(['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','live.com','aol.com','proton.me','protonmail.com','yahoo.in','rediffmail.com']);\nconst norm = (r) => { const o = {}; for (const c of COLS) { const v = r[c]; o[c] = (v === undefined || v === null) ? '' : String(v); } return o; };\nconst hostOf = (u) => { const m = String(u || '').trim().toLowerCase().match(/^(?:https?:\\/\\/)?(?:www\\.)?([a-z0-9][a-z0-9.-]*\\.[a-z]{2,})/); return m ? m[1] : ''; };\nconst emailDomain = (e) => { const m = String(e || '').toLowerCase().match(/@([a-z0-9.-]+\\.[a-z]{2,})$/); return m ? m[1] : ''; };\nconst todayStr = () => new Date().toISOString().slice(0, 10);\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\n\n// ---- Mark the lead as sent in the inbox ----\nconst cur = $('4 Sender - Loop Over Leads').first().json;\nconst rows = $input.all().map(i => clean(i.json)).filter(r => r && r.lead_id);\nif (!cur.testMode) {\n  for (const r of rows) if (r.lead_id === cur.lead_id) { r.status = 'sent'; r.decision_date = todayStr(); }\n}\nreturn rows.map(r => ({ json: norm(r) }));\n"
+   },
+   "id": "f2244861-b073-4d0d-b691-9f895cd1aa9c",
+   "name": "4 Sender - Mark Lead Sent",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3840,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {
+     "fileName": "lead_inbox.csv",
+     "headerRow": true
+    }
+   },
+   "id": "f1ad3761-e603-4d64-90d9-c5a6d8e2a8d9",
+   "name": "4 Sender - Convert Inbox",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    4080,
+    2280
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/lead_inbox.csv",
+    "dataPropertyName": "data",
+    "options": {}
+   },
+   "id": "c57480bd-4f93-4668-8085-b1064240de59",
+   "name": "4 Sender - Write Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    4320,
+    2280
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "1ac08c14-1008-423d-b1e2-d1d0485e11ec",
+   "name": "4 Sender - Finished",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    1680,
+    2540
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## 4 \u00b7 DAILY SENDER\nWeekdays 11:00. Sends up to 10 approved leads/day. Starts in TEST MODE: open the 'Pick Todays Batch' code node and set TEST_ADDRESS, your name/role/company and the offer before going live.",
+    "height": 120,
+    "width": 760,
+    "color": 4
+   },
+   "id": "92690fed-aab0-4736-a3ce-cee6259723ca",
+   "name": "Note 4 Sender",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    160,
+    2140
+   ]
+  },
+  {
+   "parameters": {
+    "mailbox": "INBOX",
+    "postProcessAction": "read",
+    "format": "simple",
+    "options": {}
+   },
+   "id": "5a8662a3-d160-46eb-9007-604bcc7beeed",
+   "name": "5 Replies - On New Email (IMAP)",
+   "type": "n8n-nodes-base.emailReadImap",
+   "typeVersion": 2.2,
+   "position": [
+    240,
+    3100
+   ],
+   "credentials": {
+    "imap": {
+     "id": "",
+     "name": "IMAP account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const msg = $input.first().json;\nlet addr = '';\ntry {\n  if (msg.from && msg.from.value && msg.from.value.length) addr = msg.from.value[0].address;\n  else if (typeof msg.from === 'string') addr = msg.from;\n  else if (msg.from && msg.from.text) addr = msg.from.text;\n} catch (e) {}\nconst match = (addr || '').match(/[^<\\s]+@[^>\\s]+/);\naddr = match ? match[0].toLowerCase() : (addr || '').toLowerCase();\nconst isBounce = /(mailer-daemon|postmaster)/i.test(addr) || /(undeliver|delivery status|returned mail|failure notice|delivery has failed)/i.test(msg.subject || '');\nconst text = String(msg.text || msg.textPlain || msg.html || '').slice(0, 8000).toLowerCase();\nreturn [{ json: { senderEmail: addr, isBounce, text, subject: msg.subject || '', receivedDate: msg.date || new Date().toISOString() } }];\n"
+   },
+   "id": "4ab37b58-2d68-4db2-afd1-c410da16be2e",
+   "name": "5 Replies - Extract Sender",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    480,
+    3100
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "b104ff13-9054-44d7-9921-afaf2dab8da5",
+   "name": "5 Replies - Read Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    3100
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "b7165009-7aae-4e8b-aa8d-576e1936fa86",
+   "name": "5 Replies - Parse Sent Log",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    960,
+    3100
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\nconst s = $('5 Replies - Extract Sender').first().json;\nconst senderEmail = s.senderEmail;\nconst today = new Date().toISOString().slice(0,10);\nconst rows = $input.all().map(item => clean(item.json)).filter(r => r.email);\nfor (const row of rows) {\n  const e = (row.email || '').toLowerCase();\n  if (row.replied) continue;\n  if (s.isBounce) {\n    if (e && s.text.includes(e)) { row.replied = 'bounced'; row.replied_date = today; }\n  } else if (e === senderEmail) {\n    row.replied = 'yes';\n    row.replied_date = today;\n  }\n}\nreturn rows.length ? rows.map(r => ({ json: r })) : [{ json: { email: '', company: '', first_name: '', sent_date: '', follow_up_1_sent: '', replied: '', replied_date: '' } }];\n"
+   },
+   "id": "b4e66c01-de01-456f-83d2-af113a8607fa",
+   "name": "5 Replies - Update Log If Match",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1200,
+    3100
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {
+     "fileName": "sent_log.csv",
+     "headerRow": true
+    }
+   },
+   "id": "2964ee18-2090-4360-9c89-ee475ffc33a5",
+   "name": "5 Replies - Convert to CSV",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    1440,
+    3100
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/sent_log.csv",
+    "dataPropertyName": "data",
+    "options": {}
+   },
+   "id": "230567d9-81e7-47c1-82ae-078dbfbbd6f6",
+   "name": "5 Replies - Write Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    1680,
+    3100
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## 5 \u00b7 REPLY WATCHER\nWatches the email inbox. A reply stops follow-ups; a bounce marks the address bad.",
+    "height": 120,
+    "width": 760,
+    "color": 4
+   },
+   "id": "b2b5585d-8a04-4471-94d3-ce115dc02f7d",
+   "name": "Note 5 Replies",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    160,
+    2960
+   ]
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "days",
+       "daysInterval": 1,
+       "triggerAtHour": 10
+      }
+     ]
+    }
+   },
+   "id": "756b298f-45aa-4aea-b99d-753076ae0eb1",
+   "name": "6 Follow-up - Daily Schedule",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    240,
+    3760
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "a6dd706e-dc41-43d3-ae29-e85be473193b",
+   "name": "6 Follow-up - Read Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    480,
+    3760
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "a79c99be-8260-44d3-9511-4db07d742eda",
+   "name": "6 Follow-up - Parse Sent Log",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    720,
+    3760
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const FOLLOW_UPS_ENABLED = false;   // set to true once the follow-up copy in 'Send Follow-up Email' is written\nif (!FOLLOW_UPS_ENABLED) return [];\nconst clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\nconst FOLLOW_UP_AFTER_DAYS = 3;\nconst msPerDay = 24 * 60 * 60 * 1000;\nconst today = new Date();\nconst candidates = [];\nfor (const item of $input.all()) {\n  const row = clean(item.json);\n  if (!row.email || !row.sent_date) continue;\n  if (row.replied) continue;\n  if (row.follow_up_1_sent) continue;\n  const sentDate = new Date(row.sent_date);\n  if (isNaN(sentDate.getTime())) continue;\n  const daysSince = Math.floor((today.getTime() - sentDate.getTime()) / msPerDay);\n  if (daysSince >= FOLLOW_UP_AFTER_DAYS) {\n    candidates.push({ json: row });\n  }\n}\nreturn candidates;\n"
+   },
+   "id": "f782e493-2d9e-4edb-96e9-be1135692e75",
+   "name": "6 Follow-up - Select Follow-up Candidates",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    960,
+    3760
+   ]
+  },
+  {
+   "parameters": {
+    "batchSize": 1,
+    "options": {}
+   },
+   "id": "642760d4-3569-4d29-9235-23f9e98ac246",
+   "name": "6 Follow-up - Loop Over Candidates",
+   "type": "n8n-nodes-base.splitInBatches",
+   "typeVersion": 3,
+   "position": [
+    1200,
+    3760
+   ]
+  },
+  {
+   "parameters": {
+    "fromEmail": "you@your-domain.com",
+    "toEmail": "={{ $json.email }}",
+    "subject": "=Following up \u2014 {{ $json.company }}",
+    "emailFormat": "html",
+    "html": "=<p>Hi {{ $json.first_name || 'there' }},</p>\n\n<p>Just following up on my note to {{ $json.company }} a few days ago \u2014 wanted to make sure it didn't get buried. Replace this paragraph with your real follow-up message once you share the copy.</p>\n\n<p>Best,<br>Your Name</p>",
+    "options": {
+     "appendAttribution": false
+    }
+   },
+   "id": "52cec559-9db0-4529-a76f-0d41dbdbbaec",
+   "name": "6 Follow-up - Send Follow-up Email",
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    1460,
+    3660
+   ],
+   "credentials": {
+    "smtp": {
+     "id": "",
+     "name": "SMTP account"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "amount": 4,
+    "unit": "seconds"
+   },
+   "id": "f0ca5a6d-e926-4328-ac63-a3ec90e05977",
+   "name": "6 Follow-up - Wait Between Sends",
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    1700,
+    3660
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "read",
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "id": "055b353f-3f60-4e98-b56d-9c3e3aad66c1",
+   "name": "6 Follow-up - Re-read Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    1940,
+    3660
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {}
+   },
+   "id": "6acba28c-a692-4681-bfc7-22d8c312e43e",
+   "name": "6 Follow-up - Parse Sent Log (2)",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    2180,
+    3660
+   ],
+   "alwaysOutputData": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const clean = (r) => { const o = {}; for (const k of Object.keys(r || {})) o[k.replace(/^\\ufeff/, '')] = r[k]; return o; };\nconst sentEmail = $('6 Follow-up - Loop Over Candidates').first().json.email;\nconst today = new Date().toISOString().slice(0,10);\nconst rows = $input.all().map(item => clean(item.json)).filter(r => r.email);\nfor (const row of rows) {\n  if ((row.email || '').toLowerCase() === (sentEmail || '').toLowerCase()) {\n    row.follow_up_1_sent = today;\n  }\n}\nreturn rows.map(r => ({ json: r }));\n"
+   },
+   "id": "00cb5932-3e4b-4950-8357-20203778c888",
+   "name": "6 Follow-up - Mark Followed Up",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2420,
+    3660
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "csv",
+    "binaryPropertyName": "data",
+    "options": {
+     "fileName": "sent_log.csv",
+     "headerRow": true
+    }
+   },
+   "id": "ffb2d5df-ea28-440c-a293-84c6f2ef253f",
+   "name": "6 Follow-up - Convert to CSV",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    2660,
+    3660
+   ]
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/sent_log.csv",
+    "dataPropertyName": "data",
+    "options": {}
+   },
+   "id": "81c651e0-272e-41f8-b84d-b5ba71406976",
+   "name": "6 Follow-up - Write Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    2900,
+    3660
+   ]
+  },
+  {
+   "parameters": {},
+   "id": "afc8756b-980a-475f-8060-b9c0e90858e5",
+   "name": "6 Follow-up - Done",
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    1460,
+    3920
+   ]
+  },
+  {
+   "parameters": {
+    "content": "## 6 \u00b7 FOLLOW-UP\nDaily 10:00. Emails leads with no reply after 3 days. OFF until FOLLOW_UPS_ENABLED = true and the copy is written.",
+    "height": 120,
+    "width": 760,
+    "color": 4
+   },
+   "id": "8325f4d7-ad49-4725-a58d-cc1e28930c95",
+   "name": "Note 6 Follow-up",
+   "type": "n8n-nodes-base.stickyNote",
+   "typeVersion": 1,
+   "position": [
+    160,
+    3520
+   ]
+  }
+ ],
+ "connections": {
+  "1 Intake - Lead Intake Form": {
+   "main": [
+    [
+     {
+      "node": "1 Intake - Read Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "1 Intake - Read Inbox": {
+   "main": [
+    [
+     {
+      "node": "1 Intake - Parse Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "1 Intake - Parse Inbox": {
+   "main": [
+    [
+     {
+      "node": "1 Intake - Read Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "1 Intake - Read Sent Log": {
+   "main": [
+    [
+     {
+      "node": "1 Intake - Parse Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "1 Intake - Parse Sent Log": {
+   "main": [
+    [
+     {
+      "node": "1 Intake - Parse & Dedupe",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "1 Intake - Parse & Dedupe": {
+   "main": [
+    [
+     {
+      "node": "1 Intake - Convert to CSV",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "1 Intake - Convert to CSV": {
+   "main": [
+    [
+     {
+      "node": "1 Intake - Write Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "2 Enrich - Read Inbox": {
+   "main": [
+    [
+     {
+      "node": "2 Enrich - Parse Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "2 Enrich - Parse Inbox": {
+   "main": [
+    [
+     {
+      "node": "2 Enrich - Find Emails & Score",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "2 Enrich - Find Emails & Score": {
+   "main": [
+    [
+     {
+      "node": "2 Enrich - Convert to CSV",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "2 Enrich - Convert to CSV": {
+   "main": [
+    [
+     {
+      "node": "2 Enrich - Write Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "2 Enrich - Run Manually": {
+   "main": [
+    [
+     {
+      "node": "2 Enrich - Read Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "2 Enrich - Daily 09:00": {
+   "main": [
+    [
+     {
+      "node": "2 Enrich - Read Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Review Page": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Read Inbox (page)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Read Inbox (page)": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Parse Inbox (page)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Parse Inbox (page)": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Build Review Page",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Build Review Page": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Show Page",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Decide Webhook": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Read Inbox (decide)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Read Inbox (decide)": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Parse Inbox (decide)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Parse Inbox (decide)": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Apply Decision",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Apply Decision": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Convert to CSV",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Convert to CSV": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Write Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "3 Review - Write Inbox": {
+   "main": [
+    [
+     {
+      "node": "3 Review - Back To Review",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Read Inbox": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Parse Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Parse Inbox": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Read Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Read Sent Log": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Parse Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Parse Sent Log": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Pick Todays Batch (EDIT SETTINGS)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Pick Todays Batch (EDIT SETTINGS)": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Loop Over Leads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Run Manually": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Read Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Weekdays 11:00": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Read Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Loop Over Leads": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Finished",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "4 Sender - Send Email (SMTP)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Send Email (SMTP)": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Wait Between Sends",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Wait Between Sends": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Read Sent Log (log)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Read Sent Log (log)": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Parse Sent Log (log)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Parse Sent Log (log)": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Append To Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Append To Sent Log": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Convert Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Convert Sent Log": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Write Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Write Sent Log": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Read Inbox (mark)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Read Inbox (mark)": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Parse Inbox (mark)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Parse Inbox (mark)": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Mark Lead Sent",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Mark Lead Sent": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Convert Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Convert Inbox": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Write Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "4 Sender - Write Inbox": {
+   "main": [
+    [
+     {
+      "node": "4 Sender - Loop Over Leads",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "5 Replies - On New Email (IMAP)": {
+   "main": [
+    [
+     {
+      "node": "5 Replies - Extract Sender",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "5 Replies - Extract Sender": {
+   "main": [
+    [
+     {
+      "node": "5 Replies - Read Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "5 Replies - Read Sent Log": {
+   "main": [
+    [
+     {
+      "node": "5 Replies - Parse Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "5 Replies - Parse Sent Log": {
+   "main": [
+    [
+     {
+      "node": "5 Replies - Update Log If Match",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "5 Replies - Update Log If Match": {
+   "main": [
+    [
+     {
+      "node": "5 Replies - Convert to CSV",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "5 Replies - Convert to CSV": {
+   "main": [
+    [
+     {
+      "node": "5 Replies - Write Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Daily Schedule": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Read Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Read Sent Log": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Parse Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Parse Sent Log": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Select Follow-up Candidates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Select Follow-up Candidates": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Loop Over Candidates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Loop Over Candidates": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Done",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "6 Follow-up - Send Follow-up Email",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Send Follow-up Email": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Wait Between Sends",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Wait Between Sends": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Re-read Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Re-read Sent Log": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Parse Sent Log (2)",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Parse Sent Log (2)": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Mark Followed Up",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Mark Followed Up": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Convert to CSV",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Convert to CSV": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Write Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "6 Follow-up - Write Sent Log": {
+   "main": [
+    [
+     {
+      "node": "6 Follow-up - Loop Over Candidates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "active": false,
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "pinData": {},
+ "id": "9ae91b3c-d241-439e-af7c-89a7833c6a5e"
+}
