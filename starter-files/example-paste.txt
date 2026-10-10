@@ -1,0 +1,4 @@
+| Company | Website | Public Email | Location | Notes |
+|---|---|---|---|---|
+| Example Studio | https://example-studio.com | hello@example-studio.com | Dubai, UAE | Small web studio, no in-house developers |
+| Sample Agency | https://sample-agency.co.uk | | London, UK | Marketing agency that outsources development |
