@@ -6,8 +6,8 @@ It does five jobs for you:
 1. **Takes in leads** you paste from Perplexity or Gemini (and skips duplicates).
 2. **Finds contact emails** on each agency's own website and scores how well they fit.
 3. **Stops and waits for you** on a Review page. Nothing is emailed until you click **Approve**.
-4. **Sends up to 10 emails a day** (weekdays) to approved leads only.
-5. **Watches your inbox** for replies and bounces, and sends a polite follow-up to people who stayed quiet.
+4. **Sends a small daily batch** (weekdays, default 5) to approved leads only, with a tiered mix of best-fit leads (2 high, 2 medium, 1 lower).
+5. **Watches your inbox** for replies and bounces, and runs a **3-email sequence**: email 1, a follow-up after 3 days, a final note 4 days later. Anyone who replies, bounces or opts out is dropped from the sequence.
 
 Everything lives in **one workflow** with six labelled sections. No paid tools are needed.
 
@@ -91,13 +91,17 @@ Last, in **section 4** (node *Send Email*) and **section 6** (node *Send Follow-
 2. At the very top you will see lines like these. Change what is inside the quotes:
    ```
    const TEST_MODE = true;       // leave TRUE for now
-   const TEST_ADDRESS = '';      // put YOUR OWN email here, e.g. 'me@gmail.com'
+   const TEST_ADDRESS = '';      // YOUR OWN email(s), e.g. 'me@gmail.com' or 'a@x.com, b@y.com'
+   const DAILY_LIMIT = 5;        // start small, see "Ramp up" below
    const SENDER_NAME = '[YOUR NAME]';
    const SENDER_ROLE = '[YOUR ROLE]';
    const SENDER_COMPANY = '[YOUR COMPANY]';
-   const SERVICE_LINE = '[ONE SENTENCE: what your team does...]';
-   const OFFER = '[ONE-SENTENCE OFFER: ...]';
+   const SENDER_SITE = '[YOUR WEBSITE]';
+   const OFFER = '[2-3 SENTENCES: what you deliver, for whom, plus proof you can back up]';
    ```
+   Further down in the same node, rewrite the **Email 1 copy** (the `html` template) in your own voice.
+   Keep the opt-out line. The same SETTINGS (name, role, company, website, starting price) and the
+   **Email 2 / Email 3 copy** also live in section 6, node **Select Follow-up Candidates**.
 3. Click **Save**. The engine **refuses to email real leads** while any `[BRACKETS]` are left
    or while `TEST_MODE` is true, so you cannot send a half-finished email by accident.
 
@@ -134,27 +138,43 @@ contact email and gives a fit score from 1 to 10. Want it now? Click **Run Manua
 3. Approved leads join the sending line. Nothing else will ever be emailed.
 
 ### Step 5. Emails go out by themselves
-Section 4 runs on weekdays at 11:00 and sends **at most 10** emails per day to approved leads,
-best score first, and writes each one into `sent_log.csv`.
+Section 4 runs on weekdays at 11:00 (your n8n timezone, set `TZ` in `docker-compose.yml`) and sends at most
+`DAILY_LIMIT` emails per day to approved leads, then writes each one into `sent_log.csv`.
+The daily batch is a mix by fit score: 2 high (9-10), 2 medium (7-8), 1 lower (6 or below). If a tier
+runs short, the gap is filled from medium first, then high, then lower. Edit `TIERS` in the node to change it.
 
 ### Step 6. Replies and follow-ups
 - A reply stops follow-ups to that person. A reply of "no" means: never contact them again.
 - A bounce (bad address) is marked so it is never emailed again.
+- The sequence is **3 emails**: email 1 on day 0, email 2 after 3 days, email 3 four days after that
+  (weekdays only, at most 10 follow-ups a day). Change the timing at the top of **Select Follow-up Candidates**.
 - Follow-ups are **off** until you turn them on (see "Going live", step 4).
 
 ---
 
 ## Going live (do this once, carefully)
 
-1. **Test email.** Keep `TEST_MODE = true` and your own address in `TEST_ADDRESS`. Approve 2 leads on the
+1. **Test email.** Keep `TEST_MODE = true` and your own address(es) in `TEST_ADDRESS` (use several, e.g. a Gmail, a work and a Proton address, to see where the email lands). Approve 2 leads on the
    Review page. In section 4 hover over the **Weekdays 11:00** node and click the little **play** button.
    Check your inbox: you should get 2 emails marked `[TEST for ...]`. Nothing was sent to the real leads.
 2. **Read them.** Fix the wording until you would be happy to receive it.
 3. **Turn on real sending.** In the same node set `TEST_MODE = false`. Save. Start with a small
    number of approvals so the first days are small (new sending addresses need a gentle start).
 4. **Turn on follow-ups.** In section 6 open **Select Follow-up Candidates**, set
-   `FOLLOW_UPS_ENABLED = true`, then open **Send Follow-up Email** and write your own follow-up text.
+   `FOLLOW_UPS_ENABLED = true` and write your own **Email 2** and **Email 3** copy in that node. Test them the same way before going live.
 5. Check `sent_log.csv` and your inbox each morning for the first week.
+
+### Before you send: email authentication
+Set these up on your sending domain first, or your mail will land in spam:
+- **SPF** and **DKIM** from your mail provider (a TXT record each in your DNS).
+- **DMARC**: a TXT record at `_dmarc.yourdomain.com`, e.g. `v=DMARC1; p=none; rua=mailto:you@yourdomain.com`.
+  Start with `p=none`, move stricter later. DNS changes can take hours to show.
+- Send one test to a Gmail inbox, open **Show original** and check SPF, DKIM and DMARC all say PASS.
+
+### Ramp up
+New sending addresses need a gentle start. Suggested: week 1 `DAILY_LIMIT = 5`, then 10, 15, 20, 25 over the next
+weeks, only if bounces stay under about 2% and nobody marks you as spam. Check your mail provider's sending limits.
+Also keep claims in your emails true and provable (years, client counts, prices) and state what a price is per.
 
 ---
 
@@ -169,7 +189,11 @@ best score first, and writes each one into `sent_log.csv`.
 | Error "Fill in SENDER_NAME..." | Brackets are still in the settings | Step 7 |
 | "Could not find a table" when pasting | The first line must be column names | Ask for the table format in `docs/prompts.md` |
 | n8n logged you out | Normal after a restart | Sign in again; your workflow is still there |
-| Nothing is sent | No approved leads, weekend, or already sent 10 today | Approve more leads on the Review page |
+| Nothing is sent | No approved leads, weekend, or already sent `DAILY_LIMIT` today | Approve more leads on the Review page |
+| Reply watcher credential test fails but sending works | IMAP access is off on the mailbox, or your plan has no IMAP | Enable IMAP in your mail settings (and use an app password if 2FA is on) |
+| SMTP "Invalid login" / "Access Restricted" | Your provider's free tier may not allow SMTP | Check your plan, or use an app password |
+| Your own name shows several people in the sender list (test mode) | Normal: test mode sends one email to all `TEST_ADDRESS` entries | Not a bug |
+| Hosting on a cloud platform fails to send | Some hosts block outbound SMTP ports 465/587 | Use a small VPS, or an HTTP email API |
 
 Stop everything: `docker compose down` in the project folder. Start again: `docker compose up -d`.
 
