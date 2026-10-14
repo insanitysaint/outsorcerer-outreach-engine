@@ -1,6 +1,7 @@
-# NEVER upload these: they hold your passwords, encryption key and real customer data
-n8n-data/
-n8n-files/*.csv
-n8n-files/*.json
+# Your secrets and your real data never go to GitHub
 .env
-*.env
+n8n-files/*
+!n8n-files/.gitkeep
+n8n-data/
+*.log
+.DS_Store
