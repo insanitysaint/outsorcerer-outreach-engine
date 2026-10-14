@@ -1,0 +1,229 @@
+{
+ "id": "4JrqKZDyySS6bqrH",
+ "name": "Outsorcerer Cockpit Reply Reader (read-only)",
+ "nodes": [
+  {
+   "parameters": {
+    "mailbox": "INBOX",
+    "postProcessAction": "nothing",
+    "format": "simple",
+    "options": {
+     "customEmailConfig": "[\"ALL\"]"
+    }
+   },
+   "name": "Replies - IMAP",
+   "type": "n8n-nodes-base.emailReadImap",
+   "typeVersion": 2,
+   "position": [
+    0,
+    0
+   ],
+   "credentials": {
+    "imap": {
+     "id": "ImapOutreach0001",
+     "name": "Outreach IMAP"
+    }
+   },
+   "id": "f173bf08-2370-4d2e-8fec-3136da38bde5"
+  },
+  {
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "name": "Replies - Read Sent Log",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    240,
+    0
+   ],
+   "executeOnce": true,
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "id": "74d9b386-256c-4006-bbc1-23fac1d64961"
+  },
+  {
+   "parameters": {
+    "options": {}
+   },
+   "name": "Replies - Parse Sent Log",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    460,
+    0
+   ],
+   "alwaysOutputData": true,
+   "id": "c9a569a3-4be6-486d-9e44-16ec6a8b154b"
+  },
+  {
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/cockpit_replies.json",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "name": "Replies - Read Store",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    680,
+    0
+   ],
+   "executeOnce": true,
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "id": "8fe3b70d-cd59-462b-a8c2-f6492aa9efe1"
+  },
+  {
+   "parameters": {
+    "operation": "fromJson",
+    "destinationKey": "doc",
+    "options": {}
+   },
+   "name": "Replies - Parse Store",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    900,
+    0
+   ],
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput",
+   "executeOnce": true,
+   "id": "c2cae41a-bb3d-4e70-9444-e1218b09331b"
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst mails = $('Replies - IMAP').all().map(i => i.json);\nconst sent = $('Replies - Parse Sent Log').all().map(i => String(i.json.email || '').toLowerCase()).filter(Boolean);\nconst sentEmails = new Set(sent), sentDomains = new Set(sent.map(e => e.split('@')[1]).filter(Boolean));\nconst old = $('Replies - Parse Store').first()?.json || {};\nconst doc = old.doc || old.data || {};\nlet store = Array.isArray(doc.replies) ? doc.replies : [];\nconst ids = new Set(store.map(x => x.id));\nconst clip = (t) => {\n  const lines = String(t || '').replace(/\\r/g, '').split('\\n'); const out = [];\n  for (const l of lines) { if (/^\\s*>/.test(l) || /^On .+wrote:\\s*$/i.test(l) || /^-{2,}\\s*Original Message/i.test(l) || /^From:\\s.+@/i.test(l)) break; out.push(l); }\n  return out.join('\\n').trim().slice(0, 1500);\n};\nlet added = 0;\nfor (const m of mails) {\n  const f = (m.from && m.from.value && m.from.value[0]) || {};\n  const from = String(f.address || '').toLowerCase(); if (!from) continue;\n  const dom = from.split('@')[1] || '';\n  if (!(sentEmails.has(from) || sentDomains.has(dom))) continue;\n  if (from === String((typeof $env !== 'undefined' && $env.SENDER_EMAIL) || '').toLowerCase()) continue;\n  const id = String(m.messageId || (from + '|' + (m.date || '') + '|' + (m.subject || '')));\n  if (ids.has(id)) continue; ids.add(id);\n  store.unshift({ id, from, name: f.name || '', subject: String(m.subject || '').slice(0, 200), date: m.date ? new Date(m.date).toISOString() : new Date().toISOString(), snippet: clip(m.text || m.textAsHtml) });\n  added++;\n}\nstore.sort((a, b) => String(b.date).localeCompare(String(a.date))); store = store.slice(0, 300);\nreturn [{ json: { str: JSON.stringify({ replies: store }), added } }];\n"
+   },
+   "name": "Replies - Merge",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1120,
+    0
+   ],
+   "id": "9ab6b3c5-1766-4990-83ea-daf7f7f60b1d"
+  },
+  {
+   "parameters": {
+    "operation": "toText",
+    "sourceProperty": "str",
+    "options": {
+     "fileName": "cockpit_replies.json"
+    }
+   },
+   "name": "Replies - Convert",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    1340,
+    0
+   ],
+   "id": "a8b26c00-4a5d-486c-bba7-4ffb9b3e9659"
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/cockpit_replies.json",
+    "options": {}
+   },
+   "name": "Replies - Write",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    1560,
+    0
+   ],
+   "id": "ddea3059-f62e-488e-93ee-ec1b2b7a8702"
+  }
+ ],
+ "connections": {
+  "Replies - IMAP": {
+   "main": [
+    [
+     {
+      "node": "Replies - Read Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Replies - Read Sent Log": {
+   "main": [
+    [
+     {
+      "node": "Replies - Parse Sent Log",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Replies - Parse Sent Log": {
+   "main": [
+    [
+     {
+      "node": "Replies - Read Store",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Replies - Read Store": {
+   "main": [
+    [
+     {
+      "node": "Replies - Parse Store",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Replies - Parse Store": {
+   "main": [
+    [
+     {
+      "node": "Replies - Merge",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Replies - Merge": {
+   "main": [
+    [
+     {
+      "node": "Replies - Convert",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Replies - Convert": {
+   "main": [
+    [
+     {
+      "node": "Replies - Write",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "active": false,
+ "pinData": {}
+}
