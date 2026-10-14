@@ -1,0 +1,639 @@
+{
+ "id": "09eC6qFlL7wgCkdR",
+ "name": "Outsorcerer Cockpit API",
+ "nodes": [
+  {
+   "parameters": {
+    "path": "cockpit",
+    "httpMethod": "GET",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "name": "UI - Page",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    0
+   ],
+   "webhookId": "8434fa74-d11d-4d2f-ad24-ef08e002b9c3",
+   "id": "8cc88898-d457-4d97-b920-a0642187f392"
+  },
+  {
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/cockpit_ui.html",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "name": "UI - Read HTML",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    220,
+    0
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "id": "28c937be-ffb7-4362-beba-3610dde059c9"
+  },
+  {
+   "parameters": {
+    "operation": "text",
+    "destinationKey": "html",
+    "options": {}
+   },
+   "name": "UI - Extract",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    440,
+    0
+   ],
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput",
+   "id": "27c13e37-9868-4a4a-9df4-01eee2fb321a"
+  },
+  {
+   "parameters": {
+    "respondWith": "text",
+    "responseBody": "={{ $json.html || $json.data || '<h1>cockpit_ui.html not found in n8n-files</h1>' }}",
+    "options": {
+     "responseHeaders": {
+      "entries": [
+       {
+        "name": "Content-Type",
+        "value": "text/html; charset=utf-8"
+       }
+      ]
+     }
+    }
+   },
+   "name": "UI - Respond",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    660,
+    0
+   ],
+   "id": "cce467da-90dc-42a1-b2c8-fd5893cc6393"
+  },
+  {
+   "parameters": {
+    "path": "ck-get",
+    "httpMethod": "GET",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "name": "Get - Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    300
+   ],
+   "webhookId": "a296b438-bb94-46ac-b909-1f783efe74e4",
+   "id": "ca10e914-61f3-45c6-b32f-bbcb9474df0f"
+  },
+  {
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/cockpit.json",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "name": "Get - Read Doc",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    220,
+    300
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "id": "17b4829d-6447-4106-9e86-b630cb534600"
+  },
+  {
+   "parameters": {
+    "operation": "fromJson",
+    "destinationKey": "doc",
+    "options": {}
+   },
+   "name": "Get - Extract Doc",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    440,
+    300
+   ],
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput",
+   "id": "5bcfd603-7dca-4b9a-9048-3ff6dbde194c"
+  },
+  {
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/cockpit_replies.json",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "name": "Get - Read Replies",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    660,
+    300
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "id": "10a31724-2e0b-4a2f-a8bf-2ab12e4594cc"
+  },
+  {
+   "parameters": {
+    "operation": "fromJson",
+    "destinationKey": "doc",
+    "options": {}
+   },
+   "name": "Get - Extract Replies",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    880,
+    300
+   ],
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput",
+   "id": "54b1d5a6-f410-4b1c-b079-156a4577b0aa"
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst MAILBOX = String((typeof $env !== 'undefined' && $env.SENDER_EMAIL) || 'you@example.com');\nconst DEF = () => ({\n  rev: 0, updated: null,\n  notes: { global: [], leads: {} },\n  campaigns: [\n    { id: 'c-gulf1', name: 'Gulf agencies - white-label', status: 'active', account: MAILBOX, region: 'Gulf (KSA, UAE, Qatar, Oman, Kuwait, Bahrain)', color: '#f97316', created: new Date().toISOString().slice(0, 10), desc: 'Sun-Thu office hours, white-label web/UI/SaaS pitch.' },\n    { id: 'c-core', name: 'Core agencies', status: 'active', account: MAILBOX, region: 'US / UK / EU / India', color: '#38bdf8', created: new Date().toISOString().slice(0, 10), desc: 'Default campaign for everything that is not assigned elsewhere.' }\n  ],\n  assign: {}, uploads: [], held: {}, stage: {},\n  accounts: [{ email: MAILBOX, label: 'Primary mailbox', provider: 'SMTP', daily_limit: Number((typeof $env !== 'undefined' && $env.DAILY_LIMIT) || 5) }],\n  settings: { goal_mrr: 5000, goal_price: 1500, copy_drafts: {} }\n});\n\nconst j = $('Get - Extract Doc').first()?.json || {};\nconst raw = j.doc || j.data || {};\nconst doc = Object.assign(DEF(), (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {});\nconst rj = $('Get - Extract Replies').first()?.json || {};\nlet replies = rj.doc || rj.data || [];\nif (!Array.isArray(replies)) replies = Array.isArray(replies.replies) ? replies.replies : [];\nreturn [{ json: { ok: true, doc, replies, now: new Date().toISOString() } }];\n"
+   },
+   "name": "Get - Shape",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    300
+   ],
+   "id": "0c96b0f7-43f3-4af2-98bb-b890179da67b"
+  },
+  {
+   "parameters": {
+    "respondWith": "firstIncomingItem",
+    "options": {}
+   },
+   "name": "Get - Respond",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    1320,
+    300
+   ],
+   "id": "ec3feaff-e543-4e56-b724-9cad958ec178"
+  },
+  {
+   "parameters": {
+    "path": "ck-op",
+    "httpMethod": "POST",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "name": "Op - Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    600
+   ],
+   "webhookId": "364f93f6-245f-4af5-aa9c-e78c2e626dc8",
+   "id": "1b0c9c19-d572-46df-bdc6-abb998bd9372"
+  },
+  {
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/cockpit.json",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "name": "Op - Read Doc",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    220,
+    600
+   ],
+   "onError": "continueRegularOutput",
+   "alwaysOutputData": true,
+   "id": "530ab805-1ea2-47fd-b7ec-6832b29bb380"
+  },
+  {
+   "parameters": {
+    "operation": "fromJson",
+    "destinationKey": "doc",
+    "options": {}
+   },
+   "name": "Op - Extract Doc",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    440,
+    600
+   ],
+   "alwaysOutputData": true,
+   "onError": "continueRegularOutput",
+   "id": "b6d6057c-a62f-4a48-8b1e-4fcf07e67314"
+  },
+  {
+   "parameters": {
+    "jsCode": "\nconst MAILBOX = String((typeof $env !== 'undefined' && $env.SENDER_EMAIL) || 'you@example.com');\nconst DEF = () => ({\n  rev: 0, updated: null,\n  notes: { global: [], leads: {} },\n  campaigns: [\n    { id: 'c-gulf1', name: 'Gulf agencies - white-label', status: 'active', account: MAILBOX, region: 'Gulf (KSA, UAE, Qatar, Oman, Kuwait, Bahrain)', color: '#f97316', created: new Date().toISOString().slice(0, 10), desc: 'Sun-Thu office hours, white-label web/UI/SaaS pitch.' },\n    { id: 'c-core', name: 'Core agencies', status: 'active', account: MAILBOX, region: 'US / UK / EU / India', color: '#38bdf8', created: new Date().toISOString().slice(0, 10), desc: 'Default campaign for everything that is not assigned elsewhere.' }\n  ],\n  assign: {}, uploads: [], held: {}, stage: {},\n  accounts: [{ email: MAILBOX, label: 'Primary mailbox', provider: 'SMTP', daily_limit: Number((typeof $env !== 'undefined' && $env.DAILY_LIMIT) || 5) }],\n  settings: { goal_mrr: 5000, goal_price: 1500, copy_drafts: {} }\n});\n\nconst j = $('Op - Extract Doc').first()?.json || {};\nconst raw = j.doc || j.data || {};\nconst doc = Object.assign(DEF(), (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {});\nconst b = $('Op - Webhook').first().json.body || {};\nconst em = (s) => String(s || '').trim().toLowerCase();\nconst nid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);\nconst now = new Date().toISOString();\nconst fail = (m) => [{ json: { str: null, result: { ok: false, error: m } } }];\nconst op = b.op;\nif (op === 'note.add') {\n  const text = String(b.text || '').trim().slice(0, 4000); if (!text) return fail('empty note');\n  const n = { id: nid(), ts: now, text, pinned: false };\n  if (b.scope === 'lead') { const k = em(b.key); if (!k) return fail('no lead'); (doc.notes.leads[k] = doc.notes.leads[k] || []).unshift(n); }\n  else doc.notes.global.unshift(n);\n} else if (op === 'note.del' || op === 'note.pin' || op === 'note.edit') {\n  const list = b.scope === 'lead' ? (doc.notes.leads[em(b.key)] || []) : doc.notes.global;\n  const i = list.findIndex(x => x.id === b.id); if (i < 0) return fail('note not found');\n  if (op === 'note.del') list.splice(i, 1);\n  else if (op === 'note.pin') list[i].pinned = !list[i].pinned;\n  else { list[i].text = String(b.text || '').slice(0, 4000); list[i].edited = now; }\n  if (b.scope === 'lead' && !list.length) delete doc.notes.leads[em(b.key)];\n} else if (op === 'campaign.save') {\n  const c = b.campaign || {}; if (!String(c.name || '').trim()) return fail('campaign needs a name');\n  const id = c.id || ('c-' + nid());\n  const rec = { id, name: String(c.name).slice(0, 80), status: ['active', 'paused', 'draft'].includes(c.status) ? c.status : 'draft', account: String(c.account || ''), region: String(c.region || '').slice(0, 120), color: String(c.color || '#a78bfa').slice(0, 9), desc: String(c.desc || '').slice(0, 400), created: c.created || now.slice(0, 10) };\n  const i = doc.campaigns.findIndex(x => x.id === id); if (i >= 0) doc.campaigns[i] = Object.assign(doc.campaigns[i], rec); else doc.campaigns.push(rec);\n} else if (op === 'campaign.del') {\n  doc.campaigns = doc.campaigns.filter(x => x.id !== b.id);\n  for (const k of Object.keys(doc.assign)) if (doc.assign[k] === b.id) delete doc.assign[k];\n  delete doc.held[b.id];\n} else if (op === 'assign') {\n  const list = Array.isArray(b.emails) ? b.emails.map(em).filter(Boolean) : [];\n  if (b.campaign && !doc.campaigns.some(x => x.id === b.campaign)) return fail('unknown campaign');\n  for (const e of list) { if (b.campaign) doc.assign[e] = b.campaign; else delete doc.assign[e]; }\n} else if (op === 'held.set') {\n  if (!b.campaign) return fail('no campaign');\n  if (Array.isArray(b.ids) && b.ids.length) doc.held[b.campaign] = b.ids.map(String); else delete doc.held[b.campaign];\n} else if (op === 'upload.log') {\n  doc.uploads.unshift(Object.assign({ ts: now }, b.entry || {})); doc.uploads = doc.uploads.slice(0, 100);\n} else if (op === 'settings.set') {\n  const s = b.settings || {};\n  if (s.goal_mrr !== undefined) doc.settings.goal_mrr = Number(s.goal_mrr) || 0;\n  if (s.goal_price !== undefined) doc.settings.goal_price = Number(s.goal_price) || 0;\n  if (s.copy_drafts && typeof s.copy_drafts === 'object') { doc.settings.copy_drafts = doc.settings.copy_drafts || {}; for (const k of Object.keys(s.copy_drafts)) { if (s.copy_drafts[k] === null) delete doc.settings.copy_drafts[k]; else doc.settings.copy_drafts[k] = { subject: String(s.copy_drafts[k].subject || '').slice(0, 300), body: String(s.copy_drafts[k].body || '').slice(0, 8000) }; } }\n} else if (op === 'stage.set') {\n  const k = em(b.key); if (!k) return fail('no lead'); doc.stage = doc.stage || {};\n  if (b.value) doc.stage[k] = String(b.value).slice(0, 20); else delete doc.stage[k];\n} else if (op === 'account.save') {\n  const a = b.account || {}; if (!/^[^@\\s]+@[^@\\s]+$/.test(a.email || '')) return fail('bad email');\n  const i = doc.accounts.findIndex(x => x.email === a.email); const rec = { email: a.email, label: String(a.label || '').slice(0, 60), provider: String(a.provider || '').slice(0, 40), daily_limit: Number(a.daily_limit) || 0, inactive: !!a.inactive };\n  if (i >= 0) doc.accounts[i] = Object.assign(doc.accounts[i], rec); else doc.accounts.push(rec);\n} else return fail('unknown op ' + op);\ndoc.rev = (doc.rev || 0) + 1; doc.updated = now;\nreturn [{ json: { str: JSON.stringify(doc), result: { ok: true, rev: doc.rev, doc } } }];\n"
+   },
+   "name": "Op - Apply",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    600
+   ],
+   "id": "e3909ec7-8ce9-4938-a206-1add2ff20ce0"
+  },
+  {
+   "parameters": {
+    "operation": "toText",
+    "sourceProperty": "str",
+    "options": {
+     "fileName": "cockpit.json"
+    }
+   },
+   "name": "Op - Convert to File",
+   "type": "n8n-nodes-base.convertToFile",
+   "typeVersion": 1.1,
+   "position": [
+    880,
+    600
+   ],
+   "id": "3ab20c6e-a3ce-4af7-a7d1-a9a9016e27bc"
+  },
+  {
+   "parameters": {
+    "operation": "write",
+    "fileName": "/home/node/.n8n-files/cockpit.json",
+    "options": {}
+   },
+   "name": "Op - Write Doc",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    1100,
+    600
+   ],
+   "id": "05dd23e2-6ca1-4d22-8ab5-efc9c02a3997"
+  },
+  {
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ $('Op - Apply').first().json.result }}",
+    "options": {}
+   },
+   "name": "Op - Respond",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    1320,
+    600
+   ],
+   "id": "e54fcf07-819c-433c-91e5-a0ff1bef87f6"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "conditions": [
+      {
+       "id": "1",
+       "leftValue": "={{ $json.result.ok }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "name": "Op - OK?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2,
+   "position": [
+    880,
+    780
+   ],
+   "id": "f481585f-3f76-40f0-866c-b3e51a3d3f6d"
+  },
+  {
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ $json.result }}",
+    "options": {
+     "responseCode": 400
+    }
+   },
+   "name": "Op - Respond Fail",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    1100,
+    780
+   ],
+   "id": "b1de7762-1ea0-4a99-9c73-f4bb411b50f2"
+  },
+  {
+   "parameters": {
+    "path": "ck-upload",
+    "httpMethod": "POST",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "name": "Upload - Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    1000
+   ],
+   "webhookId": "733dc5c0-dfb7-48ef-a7c0-d718083943b8",
+   "id": "7e67b334-36f8-445c-b5ca-74e32d0ced64"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "http://localhost:5678/form/a79f5960-3a24-424b-8da7-efa7da58aa42",
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "name": "field-0",
+       "value": "={{ $json.body.source || \"Manual\" }}"
+      },
+      {
+       "name": "field-1",
+       "value": "={{ $json.body.text }}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     },
+     "timeout": 60000
+    }
+   },
+   "name": "Upload - Submit to intake form",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    220,
+    1000
+   ],
+   "id": "d8240436-80e8-4158-adaf-923828d0b7f6"
+  },
+  {
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ { ok: $json.statusCode < 400, status: $json.statusCode } }}",
+    "options": {}
+   },
+   "name": "Upload - Respond",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    440,
+    1000
+   ],
+   "id": "a1ba16ff-ae06-4820-b841-9b4517e4c9f8"
+  }
+ ],
+ "connections": {
+  "UI - Page": {
+   "main": [
+    [
+     {
+      "node": "UI - Read HTML",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "UI - Read HTML": {
+   "main": [
+    [
+     {
+      "node": "UI - Extract",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "UI - Extract": {
+   "main": [
+    [
+     {
+      "node": "UI - Respond",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get - Webhook": {
+   "main": [
+    [
+     {
+      "node": "Get - Read Doc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get - Read Doc": {
+   "main": [
+    [
+     {
+      "node": "Get - Extract Doc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get - Extract Doc": {
+   "main": [
+    [
+     {
+      "node": "Get - Read Replies",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get - Read Replies": {
+   "main": [
+    [
+     {
+      "node": "Get - Extract Replies",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get - Extract Replies": {
+   "main": [
+    [
+     {
+      "node": "Get - Shape",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get - Shape": {
+   "main": [
+    [
+     {
+      "node": "Get - Respond",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Op - Webhook": {
+   "main": [
+    [
+     {
+      "node": "Op - Read Doc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Op - Read Doc": {
+   "main": [
+    [
+     {
+      "node": "Op - Extract Doc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Op - Extract Doc": {
+   "main": [
+    [
+     {
+      "node": "Op - Apply",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Op - Apply": {
+   "main": [
+    [
+     {
+      "node": "Op - OK?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Op - OK?": {
+   "main": [
+    [
+     {
+      "node": "Op - Convert to File",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Op - Respond Fail",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Op - Convert to File": {
+   "main": [
+    [
+     {
+      "node": "Op - Write Doc",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Op - Write Doc": {
+   "main": [
+    [
+     {
+      "node": "Op - Respond",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Upload - Webhook": {
+   "main": [
+    [
+     {
+      "node": "Upload - Submit to intake form",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Upload - Submit to intake form": {
+   "main": [
+    [
+     {
+      "node": "Upload - Respond",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "active": false,
+ "pinData": {}
+}

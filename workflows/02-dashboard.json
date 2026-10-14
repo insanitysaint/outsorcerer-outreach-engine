@@ -1,0 +1,234 @@
+{
+ "id": "CuHUWXikm7GpYCW5",
+ "name": "Outreach Dashboard (legacy page and dash-state API)",
+ "nodes": [
+  {
+   "id": "5c93a63a-ad4e-45d7-ac48-e143738b4cd1",
+   "name": "Dash - Page",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "path": "outsorcerer",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "d05f4bf7-15af-4f5d-8f8c-9021f8c6bddd"
+  },
+  {
+   "id": "060abb02-402d-424d-8811-c60e621bf864",
+   "name": "Dash - Show Page",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    300,
+    0
+   ],
+   "parameters": {
+    "respondWith": "text",
+    "responseBody": "<!doctype html>\n<html lang=\"en\" data-theme=\"dark\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Outreach Engine</title>\n<style>\n:root{--bg:#181818;--rail:#1c1c1c;--card:#232323;--card2:#2a2a2a;--line:#343434;--ink:#f4f4f4;--mut:#a6a6a6;--acc:#ff6a1a;--acch:#ff7f3a;--ok:#2fc66b;--warn:#e0a030;--bad:#f0604f;--info:#6aa4ff;--chip:#2c2c2c;--shadow:0 8px 24px rgba(0,0,0,.45)}\n:root[data-theme=light]{--bg:#f5f5f6;--rail:#fff;--card:#fff;--card2:#f1f1f3;--line:#e3e3e7;--ink:#161616;--mut:#6b6b73;--chip:#f0f0f3;--shadow:0 8px 24px rgba(0,0,0,.12)}\n*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;-webkit-font-smoothing:antialiased}\nbutton{font:inherit;color:inherit;cursor:pointer}svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}\n#rail{position:fixed;left:0;top:0;bottom:0;width:41px;background:var(--rail);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:6px;z-index:20}\n#rail .sp{flex:1}#rail button{width:30px;height:30px;border-radius:7px;border:0;background:none;color:var(--ink);display:grid;place-items:center}\n#rail button:hover{background:var(--card2)}#rail button.on{background:var(--card2);color:var(--acc)}#rail hr{width:28px;border:0;border-top:1px solid var(--line);margin:8px 0}\nmain{margin-left:41px;padding:24px 20px 60px}.wrap{max-width:1184px;margin:0 auto}\n.head{display:flex;align-items:flex-start;gap:16px;margin-bottom:30px}.head h1{margin:0;font-size:20px;font-weight:650;letter-spacing:-.01em}.head p{margin:2px 0 0;color:var(--mut)}.head .sp{flex:1}\n.split{display:flex;position:relative}.cta{background:var(--acc);color:#fff;border:0;height:32px;padding:0 12px;font-weight:600;display:flex;align-items:center;gap:6px}\n.cta.l{border-radius:6px 0 0 6px}.cta.r{border-radius:0 6px 6px 0;padding:0 8px;border-left:1px solid rgba(0,0,0,.25)}.cta:hover{background:var(--acch)}\n.kpis{display:grid;grid-template-columns:repeat(5,1fr);background:var(--card);border:1px solid var(--line);border-radius:6px;margin-bottom:46px}\n.kpi{padding:22px 24px 20px;border-right:1px solid var(--line)}.kpi:last-child{border-right:0}.kpi .l{font-weight:500;margin-bottom:8px}.kpi .v{font-size:25px;font-weight:700;letter-spacing:-.01em}.kpi .v small{font-size:15px;font-weight:600;margin-left:2px}\n.tabs{display:flex;gap:28px;border-bottom:1px solid transparent;margin-bottom:18px;overflow-x:auto}.tabs button{background:none;border:0;padding:8px 0 10px;font-weight:550;border-bottom:2px solid transparent;color:var(--ink)}\n.tabs button.on{color:var(--acc);border-color:var(--acc)}.tabs button:hover{color:var(--acch)}\n.bar{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-bottom:10px;position:relative;flex-wrap:wrap}\n.in,.sel{height:32px;background:var(--card);border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:0 10px;font:inherit;font-size:13px}.in::placeholder{color:var(--mut)}.in:focus,.sel:focus{outline:0;border-color:var(--acc)}\n.sw{position:relative;display:flex;align-items:center}.sw svg{position:absolute;left:9px;color:var(--mut)}.sw .in{padding-left:30px;width:196px}\n.ib{width:32px;height:32px;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);border-radius:5px}.ib:hover,.ib.on{border-color:var(--acc);color:var(--acc)}\n.pop{position:absolute;background:var(--card2);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:10px;z-index:30;min-width:210px}\n.pop label{display:block;font-size:12px;color:var(--mut);margin:8px 0 4px}.pop label:first-child{margin-top:0}.pop .sel,.pop .in{width:100%}\n.menu button{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:7px 9px;border-radius:5px}.menu button:hover{background:var(--chip)}\n.rows{display:flex;flex-direction:column;gap:8px}.scroller{max-height:min(660px,calc(100vh - 340px));min-height:200px;overflow-y:auto;padding:2px 8px 2px 0;scrollbar-width:thin;scrollbar-color:var(--line) transparent}.scroller::-webkit-scrollbar{width:8px}.scroller::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}.bars{display:inline-flex;gap:2px}.bars b{width:11px;height:4px;border-radius:2px;background:var(--line)}.bars b.on{background:var(--ok)}.chip.bad .bars b.on{background:var(--bad)}\n.row{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:15px 16px;min-height:68px}\n.row:hover{border-color:#4a4a4a}.row .m{flex:1;min-width:0}.row .t{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row .t a{color:inherit;text-decoration:none}.row .t a:hover{color:var(--acc)}\n.meta{color:var(--mut);font-size:12.5px;margin-top:2px;display:flex;flex-wrap:wrap}.meta span+span::before{content:\"\";display:inline-block;width:1px;height:11px;background:var(--acc);margin:0 9px;vertical-align:-1px}\n.right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}\n.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:99px;border:1px solid var(--line);background:var(--chip);font-size:12px;font-weight:550;white-space:nowrap}\n.chip i{width:7px;height:7px;border-radius:50%;background:var(--mut);display:inline-block}.chip.ok i{background:var(--ok)}.chip.warn i{background:var(--warn)}.chip.bad i{background:var(--bad)}.chip.info i{background:var(--info)}\n.chip svg{width:12px;height:12px}.ck{width:16px;height:16px;accent-color:var(--acc);flex:none}\n.btn{height:28px;padding:0 11px;border-radius:5px;border:1px solid var(--line);background:var(--card);font-size:12.5px;font-weight:600}.btn:hover{border-color:var(--acc)}\n.btn.ok{color:var(--ok)}.btn.bad{color:var(--bad)}.btn.p{background:var(--acc);border-color:var(--acc);color:#fff}.btn[disabled]{opacity:.45;cursor:default}\n.kb{width:28px;height:28px;border:0;background:none;border-radius:5px;display:grid;place-items:center;color:var(--mut)}.kb:hover{background:var(--chip);color:var(--ink)}\n.selbar{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--acc);border-radius:6px;padding:8px 12px;margin-bottom:8px}.selbar b{margin-right:auto}\n.empty{border:1px dashed var(--line);border-radius:6px;padding:36px;text-align:center;color:var(--mut)}\n.pg{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:22px;color:var(--mut)}.pg .n{min-width:30px;height:32px;border-radius:5px;background:var(--card2);color:var(--ink);display:grid;place-items:center;font-weight:600}\n.pg .ib{border:0;background:none;color:var(--mut)}.pg .ib[disabled]{opacity:.35}\n.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-bottom:8px}.card pre{white-space:pre-wrap;font:13px/1.55 inherit;background:var(--card2);padding:12px 14px;border-radius:6px;margin:8px 0 14px}\n.note{color:var(--mut);font-size:12.5px;margin:0 0 12px}.note a{color:var(--acc)}\n#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;z-index:50;font-weight:550}#toast.on{opacity:1}\n@media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.kpi{border-bottom:1px solid var(--line)}.row{flex-wrap:wrap}.right{justify-content:flex-start}}\n@media(max-width:620px){#rail{display:none}main{margin-left:0}}\n</style></head><body>\n<nav id=\"rail\"></nav>\n<main><div class=\"wrap\">\n<div class=\"head\"><div><h1>Overview</h1><p>All the leads, sends and replies for your outreach engine <span id=\"stamp\" style=\"opacity:.7\"></span></p></div><span class=\"sp\"></span>\n<div class=\"split\"><button class=\"cta l\" id=\"add\">Add leads</button><button class=\"cta r\" id=\"addm\" aria-label=\"More\"><svg viewBox=\"0 0 24 24\"><path d=\"m6 9 6 6 6-6\"/></svg></button></div></div>\n<div class=\"kpis\" id=\"kpis\"></div>\n<div class=\"tabs\" id=\"tabs\"></div>\n<div id=\"view\"></div>\n</div></main><div id=\"toast\"></div><div id=\"pop\" class=\"pop menu\" style=\"display:none\"></div>\n<script>\nconst FORM='/form/a79f5960-3a24-424b-8da7-efa7da58aa42';\nconst I={plus:'<path d=\"M12 5v14M5 12h14\"/>',search:'<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/>',list:'<path d=\"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01\"/>',send:'<path d=\"m22 2-7 20-4-9-9-4zM22 2 11 13\"/>',chart:'<path d=\"M4 20V10M10 20V4M16 20v-7M22 20H2\"/>',mail:'<rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"m3 7 9 6 9-6\"/>',gear:'<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z\"/>',refresh:'<path d=\"M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M3 21v-5h5\"/>',sun:'<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"/>',filter:'<path d=\"M22 3H2l8 9.5V19l4 2v-8.5z\"/>',dots:'<circle cx=\"12\" cy=\"5\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"19\" r=\"1\"/>',left:'<path d=\"m15 18-6-6 6-6\"/>',right:'<path d=\"m9 18 6-6-6-6\"/>',user:'<circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21a8 8 0 0 1 16 0\"/>',ext:'<path d=\"M14 3h7v7M10 14 21 3M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5\"/>',copy:'<rect x=\"9\" y=\"9\" width=\"12\" height=\"12\" rx=\"2\"/><path d=\"M5 15V5a2 2 0 0 1 2-2h10\"/>',undo:'<path d=\"M3 7v6h6M3 13a9 9 0 1 0 3-7\"/>',check:'<path d=\"m5 12 5 5L20 7\"/>',x:'<path d=\"M6 6l12 12M18 6 6 18\"/>'};\nconst ic=n=>`<svg viewBox=\"0 0 24 24\">${I[n]}</svg>`;\nconst TABS=[['leads','Leads'],['queue','Queue'],['sent','Sent'],['replies','Replies'],['settings','Settings']];\nlet tab='leads',S={leads:[],sent:[]},sel=new Set(),F={status:'review',q:'',min:'',region:'all',sort:'score'},lim=10;\nconst $=s=>document.querySelector(s),esc=v=>String(v==null?'':v).replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]));\nfunction toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('on'),2200)}\nconst TZ=[[/dubai|abu dhabi|sharjah|ajman|ras al|al ain|uae|emirates|fujairah/i,'Asia/Dubai',0],[/riyadh|jeddah|dammam|khobar|saudi|ksa/i,'Asia/Riyadh',0],[/muscat|oman/i,'Asia/Muscat',0],[/doha|qatar/i,'Asia/Qatar',0],[/kuwait|salmiya/i,'Asia/Kuwait',0],[/manama|bahrain/i,'Asia/Bahrain',0],[/london|uk|united kingdom|england/i,'Europe/London',1],[/usa|united states|lewes/i,'America/New_York',1],[/australia|sydney|melbourne|perth/i,'Australia/Sydney',1]];\nfunction officeOpen(loc){let z='Asia/Dubai',we=0;for(const t of TZ)if(t[0].test(loc||'')){z=t[1];we=t[2];break}\n const p=new Intl.DateTimeFormat('en-US',{timeZone:z,hour:'numeric',hourCycle:'h23',weekday:'short'}).formatToParts(new Date());const h=+p.find(x=>x.type==='hour').value,w=p.find(x=>x.type==='weekday').value;\n const work=we?!['Sat','Sun'].includes(w):!['Fri','Sat'].includes(w);return work&&h>=9&&h<11}\nconst REG={all:'All locations',uae:/uae|dubai|abu dhabi|sharjah|ajman|ras al|al ain|emirates/i,ksa:/saudi|ksa|riyadh|jeddah|dammam|khobar/i,om:/oman|muscat/i,qa:/qatar|doha/i,kw:/kuwait/i,bh:/bahrain|manama/i};\nconst REGN={uae:'UAE',ksa:'Saudi Arabia',om:'Oman',qa:'Qatar',kw:'Kuwait',bh:'Bahrain',other:'Other'};\nconst inReg=(l,r)=>r==='all'||(r==='other'?!['uae','ksa','om','qa','kw','bh'].some(k=>REG[k].test(l.location||'')):REG[r].test(l.location||''));\nconst addDays=(s,n)=>{const d=new Date(s+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};\nconst today=()=>new Date().toISOString().slice(0,10);\nconst fd=s=>{if(!s)return '';const d=new Date(s+'T00:00:00Z');return isNaN(d)?s:d.toLocaleDateString('en-GB',{day:'numeric',month:'long',timeZone:'UTC'})};\nconst sentRows=()=>S.sent.filter(r=>r.email);\nconst sentMap=()=>{const m={};sentRows().forEach(r=>m[r.email.toLowerCase()]=r);return m};\nconst bars=n=>`<span class=\"bars\"><b class=\"${n>=1?'on':''}\"></b><b class=\"${n>=2?'on':''}\"></b><b class=\"${n>=3?'on':''}\"></b></span>`;\nfunction seqChip(r,l){if(r){const n=r.follow_up_2_sent?3:r.follow_up_1_sent?2:1;const st=!!r.replied;return `<span class=\"chip ${st?'bad':''}\" title=\"${st?'Replied, bounced or opted out: sequence stopped':'Next email is sent 5 days after the last one'}\">${bars(n)}${st?'Stopped at '+n+'/3':(n===3?'Sequence 3/3 · done':'Sequence '+n+'/3')}</span>`}if(l&&l.status==='approved')return `<span class=\"chip\">${bars(0)}Queued · 0/3</span>`;if(l&&l.status==='review')return `<span class=\"chip\">${bars(0)}Not started</span>`;return ''}\nconst sentSet=()=>new Set(sentRows().map(r=>r.email.toLowerCase()));\nconst queue=()=>{const ss=sentSet();return S.leads.filter(l=>l.status==='approved'&&!ss.has((l.email||'').toLowerCase())).sort((a,b)=>(+b.persona_score||0)-(+a.persona_score||0))};\nasync function load(){try{const r=await fetch('/webhook/dash-state',{cache:'no-store'});S=await r.json();$('#stamp').textContent='· updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});render()}catch(e){$('#stamp').textContent='· could not load: '+e.message}}\nfunction rail(){const b=(n,t,id,on)=>`<button title=\"${t}\" data-r=\"${id}\" class=\"${on?'on':''}\">${ic(n)}</button>`;\n $('#rail').innerHTML=b('plus','Add leads','add')+b('search','Search','search')+'<hr>'+TABS.slice(0,4).map(([k,l])=>b({leads:'list',queue:'send',sent:'chart',replies:'mail'}[k],l,'t:'+k,tab===k)).join('')+'<span class=\"sp\"></span>'+b('refresh','Refresh','refresh')+b('sun','Toggle theme','theme')+b('gear','Settings','t:settings',tab==='settings')}\n$('#rail').onclick=e=>{const b=e.target.closest('button');if(!b)return;const r=b.dataset.r;if(r==='add')window.open(FORM,'_blank');else if(r==='search'){go('leads');setTimeout(()=>{const s=$('#fq');s&&s.focus()},0)}else if(r==='refresh')load();else if(r==='theme'){const h=document.documentElement;h.dataset.theme=h.dataset.theme==='dark'?'light':'dark'}else if(r.startsWith('t:'))go(r.slice(2))};\nfunction go(t){tab=t;lim=10;sel.clear();render()}\nfunction kpis(){const sent=sentRows(),td=today(),rep=sent.filter(r=>r.replied).length,fu=sent.filter(r=>r.follow_up_1_sent).length+sent.filter(r=>r.follow_up_2_sent).length;\n const c=(l,v)=>`<div class=\"kpi\"><div class=\"l\">${l}</div><div class=\"v\">${v}</div></div>`;\n $('#kpis').innerHTML=c('Emails sent',sent.length)+c('Sent today (UTC)',sent.filter(r=>r.sent_date===td).length)+c('Follow-ups sent',fu)+c('Reply rate',sent.length?Math.round(rep/sent.length*100)+'<small>%</small>':'--')+c('Awaiting review',S.leads.filter(l=>l.status==='review').length)}\nfunction render(){rail();kpis();$('#tabs').innerHTML=TABS.map(([k,l])=>`<button data-t=\"${k}\" class=\"${k===tab?'on':''}\">${l}</button>`).join('');({leads:vLeads,queue:vQueue,sent:vSent,replies:vReplies,settings:vSettings})[tab]($('#view'))}\n$('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t)go(t)};\nfunction popAt(el,html,left){const p=$('#pop');p.innerHTML=html;p.style.display='block';const r=el.getBoundingClientRect();const w=p.offsetWidth;p.style.position='fixed';p.style.top=(r.bottom+6)+'px';p.style.left=Math.max(8,left?r.left:r.right-w)+'px'}\ndocument.addEventListener('click',e=>{const p=$('#pop');if(p.style.display!=='none'&&!p.contains(e.target)&&!e.target.closest('[data-pop]'))p.style.display='none'});\nconst closePop=()=>$('#pop').style.display='none';\n$('#addm').dataset.pop=1;$('#addm').onclick=e=>{e.stopPropagation();$('#pop').classList.add('menu');popAt($('#addm'),`<button data-m=\"add\">${ic('plus')}Paste a table of leads</button><button data-m=\"bulk\">${ic('check')}Approve all with score ≥ …</button><button data-m=\"n8n\">${ic('ext')}Open n8n</button>`)};\n$('#add').onclick=()=>window.open(FORM,'_blank');\n$('#pop').onclick=async e=>{const b=e.target.closest('button[data-m]');if(!b)return;const m=b.dataset.m;if(m==='bulk'){$('#pop').classList.remove('menu');popAt($('#addm'),`<label>Approve every review lead with an email and a score of at least</label><input class=\"in\" id=\"bn\" type=\"number\" value=\"8\"><button class=\"btn p\" data-m=\"bulkgo\" style=\"margin-top:10px;width:100%\">Approve them</button>`);return}\n closePop();if(m==='bulkgo'){const n=$('#bn').value;if(n!==''&&!isNaN(+n)){await call('bulk=approve&min='+encodeURIComponent(n));toast('Bulk approve done');load()}return}\n if(m==='add')window.open(FORM,'_blank');else if(m==='n8n')window.open('/home/workflows','_blank');\n  else if(m==='site')window.open(b.dataset.u,'_blank');\n else if(m==='copy'){try{await navigator.clipboard.writeText(b.dataset.u);toast('Email copied')}catch(x){toast(b.dataset.u)}}\n else if(m==='undo')act([b.dataset.u],'undo')}\nfunction toolbar(withFilter){return `<div class=\"bar\"><div class=\"sw\">${ic('search')}<input class=\"in\" id=\"fq\" placeholder=\"Search\" value=\"${esc(F.q)}\"></div><select class=\"sel\" id=\"fsort\"><option value=\"score\" ${F.sort==='score'?'selected':''}>Sort by score</option><option value=\"new\" ${F.sort==='new'?'selected':''}>Sort by last added</option><option value=\"name\" ${F.sort==='name'?'selected':''}>Sort by name</option></select>${withFilter?`<button class=\"ib ${F.status!=='review'||F.region!=='all'||F.min!==''?'on':''}\" id=\"fbtn\" data-pop=\"1\" title=\"Filter\">${ic('filter')}</button>`:''}</div>`}\nfunction bindBar(rerender){const q=$('#fq');q.oninput=e=>{F.q=e.target.value;lim=10;clearTimeout(window._t);window._t=setTimeout(()=>{rerender();const x=$('#fq');x.focus();x.setSelectionRange(F.q.length,F.q.length)},220)};$('#fsort').onchange=e=>{F.sort=e.target.value;rerender()};\n const fb=$('#fbtn');if(fb)fb.onclick=e=>{e.stopPropagation();const p=$('#pop');p.classList.remove('menu');popAt(fb,`<label>Status</label><select class=\"sel\" id=\"pf-s\">${['review','approved','rejected','no_email'].map(s=>`<option ${F.status===s?'selected':''}>${s}</option>`).join('')}</select><label>Location</label><select class=\"sel\" id=\"pf-r\">${['all','uae','ksa','om','qa','kw','bh','other'].map(r=>`<option value=\"${r}\" ${F.region===r?'selected':''}>${r==='all'?'All locations':REGN[r]}</option>`).join('')}</select><label>Minimum score</label><input class=\"in\" id=\"pf-m\" type=\"number\" placeholder=\"Any\" value=\"${esc(F.min)}\">`);\n  const ap=()=>{F.status=$('#pf-s').value;F.region=$('#pf-r').value;F.min=$('#pf-m').value;lim=10;sel.clear();rerender()};['#pf-s','#pf-r'].forEach(s=>$(s).onchange=ap);$('#pf-m').onchange=ap}}\nfunction sortRows(a){const s=F.sort;return a.slice().sort((x,y)=>s==='name'?(x.company||'').localeCompare(y.company||''):s==='new'?(y.added_date||'').localeCompare(x.added_date||'')||(+y.persona_score||0)-(+x.persona_score||0):(+y.persona_score||0)-(+x.persona_score||0))}\nfunction pager(n){const shown=Math.min(lim,n);const opts=[10,25,50,100,'all'];if(lim<1e9&&!opts.includes(lim))opts.push(lim);opts.sort((x,y)=>(x==='all'?1e9:x)-(y==='all'?1e9:y));return `<div class=\"pg\"><span>Showing ${shown} of ${n}</span><button class=\"btn\" id=\"pm\" ${lim>=n?'disabled':''}>Show 10 more</button><select class=\"sel\" id=\"pps\" title=\"Rows to show\">${opts.map(x=>`<option value=\"${x}\" ${(x==='all'&&lim>=1e9)||x===lim?'selected':''}>${x==='all'?'Show all':'Show '+x}</option>`).join('')}</select></div>`}\nfunction bindPager(rr){$('#pm').onclick=()=>{lim+=10;rr()};$('#pps').onchange=e=>{lim=e.target.value==='all'?1e9:+e.target.value;rr()}}\nconst slice=a=>a.slice(0,lim);\nconst stChip=s=>({review:['Review','warn'],approved:['Approved','ok'],rejected:['Rejected','bad'],no_email:['No email','bad'],new:['New','info']})[s]||[s,''];\nfunction kebab(l){return `<button class=\"kb\" data-pop=\"1\" data-k=\"${esc(l.lead_id)}\" title=\"More\">${ic('dots')}</button>`}\nfunction vLeads(m){const SM=sentMap();let rows=S.leads.filter(l=>l.status===F.status&&inReg(l,F.region)&&(!F.q||(l.company+' '+l.location+' '+l.email+' '+l.angle).toLowerCase().includes(F.q.toLowerCase()))&&(F.min===''||(+l.persona_score||0)>=+F.min));rows=sortRows(rows);\n const rv=F.status==='review',vis=slice(rows);\n m.innerHTML=toolbar(true)+(sel.size?`<div class=\"selbar\"><b>${sel.size} selected</b><button class=\"btn p\" id=\"ba\">Approve</button><button class=\"btn bad\" id=\"br\">Reject</button><button class=\"btn\" id=\"bc\">Clear</button></div>`:'')+\n `<div class=\"rows scroller\">${vis.map(l=>{const [sl,sc]=stChip(l.status);return `<div class=\"row\">${rv?`<input class=\"ck\" type=\"checkbox\" data-id=\"${esc(l.lead_id)}\" ${sel.has(l.lead_id)?'checked':''}>`:''}<div class=\"m\"><div class=\"t\"><a href=\"${esc(l.website)}\" target=\"_blank\" rel=\"noopener\">${esc(l.company)}</a></div><div class=\"meta\"><span>${esc(l.location)||'Location unknown'}</span><span>${esc(l.email)||'No email'}</span>${l.angle?`<span>${esc(l.angle)}</span>`:''}<span>Added ${esc(fd(l.added_date))}</span></div></div>\n <div class=\"right\">${l.persona_score?`<span class=\"chip\">Score ${esc(l.persona_score)}</span>`:`<span class=\"chip\">Not scored yet</span>`}<span class=\"chip\">${ic('user')}${esc(l.source)}</span>${seqChip(SM[(l.email||'').toLowerCase()],l)}<span class=\"chip ${sc}\"><i></i>${sl}</span>${rv?`<button class=\"btn ok\" data-a=\"approve\" data-id=\"${esc(l.lead_id)}\" ${l.email?'':'disabled'}>Approve</button><button class=\"btn bad\" data-a=\"reject\" data-id=\"${esc(l.lead_id)}\">Reject</button>`:''}${kebab(l)}</div></div>`}).join('')||'<div class=\"empty\">No leads match these filters.</div>'}</div>`+pager(rows.length);\n bindBar(()=>vLeads(m));bindPager(()=>vLeads(m));\n m.querySelectorAll('.ck').forEach(c=>c.onchange=()=>{c.checked?sel.add(c.dataset.id):sel.delete(c.dataset.id);vLeads(m)});\n m.querySelectorAll('button[data-a]').forEach(b=>b.onclick=()=>act([b.dataset.id],b.dataset.a));\n m.querySelectorAll('button[data-k]').forEach(b=>b.onclick=e=>{e.stopPropagation();const l=S.leads.find(x=>x.lead_id===b.dataset.k);$('#pop').classList.add('menu');popAt(b,`<button data-m=\"site\" data-u=\"${esc(l.website)}\">${ic('ext')}Open website</button>${l.email?`<button data-m=\"copy\" data-u=\"${esc(l.email)}\">${ic('copy')}Copy email</button>`:''}${l.status!=='review'?`<button data-m=\"undo\" data-u=\"${esc(l.lead_id)}\">${ic('undo')}Move back to review</button>`:''}`)});\n if($('#ba')){$('#ba').onclick=()=>act([...sel],'approve');$('#br').onclick=()=>act([...sel],'reject');$('#bc').onclick=()=>{sel.clear();vLeads(m)}}}\nasync function call(qs){await fetch('/webhook/lead-decide?'+qs,{cache:'no-store',redirect:'manual'})}\nasync function act(ids,a){let i=0;for(const id of ids){toast(a+' '+(++i)+' of '+ids.length+'…');await call('id='+encodeURIComponent(id)+'&d='+a)}sel.clear();toast('Done');await load()}\nfunction vQueue(m){let rows=queue();if(F.q)rows=rows.filter(l=>(l.company+l.location+l.email).toLowerCase().includes(F.q.toLowerCase()));\n m.innerHTML=toolbar(false)+`<p class=\"note\">Approved leads that haven’t been emailed yet, highest score first. A lead is only emailed while its own office window (09:00–11:00 local, working days) is open.</p><div class=\"rows scroller\">${slice(rows).map(l=>{const o=officeOpen(l.location);return `<div class=\"row\"><div class=\"m\"><div class=\"t\">${esc(l.company)}</div><div class=\"meta\"><span>${esc(l.location)||'Location unknown'}</span><span>${esc(l.email)}</span></div></div><div class=\"right\"><span class=\"chip\">Score ${esc(l.persona_score)||'–'}</span><span class=\"chip ${o?'ok':''}\"><i></i>Office ${o?'open now':'closed'}</span><button class=\"btn\" data-u=\"${esc(l.lead_id)}\">Move back to review</button></div></div>`}).join('')||'<div class=\"empty\">Nothing approved and waiting. Approve leads in the Leads tab.</div>'}</div>`+pager(rows.length);\n bindBar(()=>vQueue(m));bindPager(()=>vQueue(m));m.querySelectorAll('button[data-u]').forEach(b=>b.onclick=()=>act([b.dataset.u],'undo'))}\nfunction stage(r){return r.replied?['Stopped','bad']:r.follow_up_2_sent?['Sequence done','']:r.follow_up_1_sent?['Email 2 sent','info']:['Email 1 sent','ok']}\nfunction nextDue(r){if(r.replied||r.follow_up_2_sent)return '';const b=r.follow_up_1_sent?addDays(r.follow_up_1_sent,5):addDays(r.sent_date,5);return (r.follow_up_1_sent?'Email 3':'Email 2')+' due '+fd(b)}\nfunction vSent(m){let rows=sentRows().sort((a,b)=>(b.sent_date||'').localeCompare(a.sent_date||''));if(F.q)rows=rows.filter(r=>(r.company+r.email+r.location).toLowerCase().includes(F.q.toLowerCase()));\n m.innerHTML=toolbar(false).replace(/<select class=\"sel\" id=\"fsort\">.*?<\\/select>/,'<select class=\"sel\" id=\"fsort\" style=\"display:none\"></select>')+`<div class=\"rows scroller\">${slice(rows).map(r=>{const s=stage(r),nd=nextDue(r);return `<div class=\"row\"><div class=\"m\"><div class=\"t\">${esc(r.company)}</div><div class=\"meta\"><span>${esc(r.location)||'Location unknown'}</span><span>${esc(r.email)}</span><span>Email 1 sent ${esc(fd(r.sent_date))}</span>${r.follow_up_1_sent?`<span>Email 2 ${esc(fd(r.follow_up_1_sent))}</span>`:''}${r.follow_up_2_sent?`<span>Email 3 ${esc(fd(r.follow_up_2_sent))}</span>`:''}</div></div><div class=\"right\">${nd?`<span class=\"chip\">${esc(nd)}</span>`:''}${seqChip(r)}</div></div>`}).join('')||'<div class=\"empty\">Nothing sent yet. The first emails go out when a lead’s office window opens.</div>'}</div>`+pager(rows.length);\n bindBar(()=>vSent(m));bindPager(()=>vSent(m))}\nfunction vReplies(m){const rows=sentRows().filter(r=>r.replied);\n m.innerHTML=`<p class=\"note\">The engine records who replied, bounced or opted out, and stops their sequence. The message itself stays in your mailbox.</p><div class=\"rows scroller\">${rows.map(r=>`<div class=\"row\"><div class=\"m\"><div class=\"t\">${esc(r.company)}</div><div class=\"meta\"><span>${esc(r.location)||'Location unknown'}</span><span><a href=\"mailto:${esc(r.email)}\" style=\"color:inherit\">${esc(r.email)}</a></span><span>${esc(fd(r.replied_date))}</span></div></div><div class=\"right\"><span class=\"chip warn\"><i></i>${esc(r.replied)}</span></div></div>`).join('')||'<div class=\"empty\">No replies yet.</div>'}</div>`}\nfunction vSettings(m){const R=(t,s,c)=>`<div class=\"row\"><div class=\"m\"><div class=\"t\">${t}</div><div class=\"meta\"><span>${s}</span></div></div><div class=\"right\"><span class=\"chip\">${c}</span></div></div>`;\n m.innerHTML=`<p class=\"note\">Read-only snapshot of the live engine as configured on 13 October 2026. Editing from this page comes in the next version.</p><div class=\"rows scroller\">${R('Daily send cap','2 high, 2 medium, 1 low score per day','5 / day')}${R('Office window','Each lead is emailed only while it is 09:00–11:00 in their city','Local time')}${R('Working days','Gulf: Sunday to Thursday. Everywhere else: Monday to Friday. Unknown location uses Dubai time','Per country')}${R('Sequence gap','Email 1, then Email 2 after 5 days, then Email 3 after 5 more','5 days')}${R('Follow-up cap','Maximum follow-ups per day','10 / day')}</div>\n <h2 style=\"font-size:14px;margin:24px 0 10px\">Sequence copy <span style=\"color:var(--mut);font-weight:400\">— same subject on all three: “The project you had to turn down”</span></h2>\n <div class=\"card\"><b>Email 1</b><pre>Hi {first name},\n\nIn the last 90 days, has {company} turned down a project or stretched the team past its limit?\n\nMost growing agencies have. Capacity, not clients, quietly becomes the ceiling.\n\nI’m {your name} from {your company}. {Your offer, one or two sentences.}\n\nWorth a quick call? {your booking link}</pre><b>Email 2 · day 5</b><pre>Following up in case my note got buried. {Your brand}’s basic services start from {your price}, so you can resell at your own margin… Reply “yes” and I’ll send the rate card, or grab a time.</pre><b>Email 3 · day 10</b><pre>Last note from me, I promise. If a project is slipping, a hire isn’t justified yet, or there’s a client you want to impress, that’s exactly what we take on, quietly, under your name…</pre></div>`}\nload();setInterval(()=>{if(document.visibilityState==='visible'&&tab!=='leads'&&!$('#fq')?.matches(':focus'))load()},60000);\n</script></body></html>\n",
+    "options": {
+     "responseHeaders": {
+      "entries": [
+       {
+        "name": "Content-Type",
+        "value": "text/html; charset=utf-8"
+       }
+      ]
+     }
+    }
+   }
+  },
+  {
+   "id": "377de01c-31e0-43b6-9c70-68b66f639aa1",
+   "name": "Dash - State",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "position": [
+    0,
+    300
+   ],
+   "parameters": {
+    "path": "dash-state",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "webhookId": "ce629f25-7c73-45ec-ba02-f2cd3ef22995"
+  },
+  {
+   "id": "f979cebf-96e3-40eb-90f1-aecac3390eec",
+   "name": "Dash - Read Inbox",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    260,
+    300
+   ],
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/lead_inbox.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   }
+  },
+  {
+   "id": "13116e2a-1310-4a75-9480-96ac7b2e3945",
+   "name": "Dash - Parse Inbox",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    520,
+    300
+   ],
+   "parameters": {
+    "options": {}
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "id": "ff105ce3-ebb9-4f4a-8cdf-e8206dda4e1c",
+   "name": "Dash - Read Sent",
+   "type": "n8n-nodes-base.readWriteFile",
+   "typeVersion": 1.1,
+   "position": [
+    780,
+    300
+   ],
+   "parameters": {
+    "fileSelector": "/home/node/.n8n-files/sent_log.csv",
+    "options": {
+     "dataPropertyName": "data"
+    }
+   },
+   "executeOnce": true
+  },
+  {
+   "id": "1a7cc0ed-44a8-4e6b-9112-0f60750e625a",
+   "name": "Dash - Parse Sent",
+   "type": "n8n-nodes-base.extractFromFile",
+   "typeVersion": 1.1,
+   "position": [
+    1040,
+    300
+   ],
+   "parameters": {
+    "options": {}
+   },
+   "alwaysOutputData": true
+  },
+  {
+   "id": "0f1b03b6-cc57-48cd-ab77-f225cd02925f",
+   "name": "Dash - Assemble",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1300,
+    300
+   ],
+   "parameters": {
+    "jsCode": "const clean = o => { const r = {}; for (const k in o) r[k.replace(/^\\ufeff/, '')] = o[k] == null ? '' : String(o[k]); return r; };\nconst leads = $('Dash - Parse Inbox').all().map(i => clean(i.json)).filter(r => r.lead_id);\nconst seen = new Set(); const sent = $('Dash - Parse Sent').all().map(i => clean(i.json)).filter(r => r.email && !seen.has(r.email.toLowerCase()) && seen.add(r.email.toLowerCase()));\nreturn [{ json: { leads, sent, now: new Date().toISOString() } }];"
+   }
+  },
+  {
+   "id": "961f1e58-fece-47ab-96ae-78231e856570",
+   "name": "Dash - Send State",
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1,
+   "position": [
+    1560,
+    300
+   ],
+   "parameters": {
+    "respondWith": "firstIncomingItem",
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Dash - Page": {
+   "main": [
+    [
+     {
+      "node": "Dash - Show Page",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dash - State": {
+   "main": [
+    [
+     {
+      "node": "Dash - Read Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dash - Read Inbox": {
+   "main": [
+    [
+     {
+      "node": "Dash - Parse Inbox",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dash - Parse Inbox": {
+   "main": [
+    [
+     {
+      "node": "Dash - Read Sent",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dash - Read Sent": {
+   "main": [
+    [
+     {
+      "node": "Dash - Parse Sent",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dash - Parse Sent": {
+   "main": [
+    [
+     {
+      "node": "Dash - Assemble",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Dash - Assemble": {
+   "main": [
+    [
+     {
+      "node": "Dash - Send State",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "active": false,
+ "pinData": {}
+}

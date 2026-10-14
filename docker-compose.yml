@@ -1,24 +1,35 @@
-version: "3.8"
-
-# Self-hosted n8n for the Outreach Engine.
-# Start with: docker compose up -d
-# Then open http://localhost:5678 and create your owner account (first run only).
-#
-# This mounts a local "n8n-files" folder (next to this compose file) into the
-# container at /home/node/.n8n-files — that's the ONLY path n8n's file nodes
-# are allowed to read from by default (n8n's N8N_RESTRICT_FILE_ACCESS_TO
-# security setting). The two starter CSV files go there (see README).
-# It also mounts "n8n-data" so your workflows/credentials survive restarts.
+# Outreach Engine starter kit. Start with:  docker compose up -d
+# Then open  http://localhost:5678/webhook/cockpit   (the cockpit)
+#            http://localhost:5678                    (n8n itself, create your owner account on first visit)
+name: outsorcerer-outreach-engine
 
 services:
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
+    image: docker.n8n.io/n8nio/n8n:2.35.7
+    container_name: outreach-engine
     restart: unless-stopped
+    init: true
     ports:
-      - "5678:5678"
+      - "${N8N_PORT:-5678}:5678"
+    env_file:
+      - .env
     environment:
-      - TZ=UTC   # <- change to your timezone, e.g. Asia/Calcutta, Europe/London
-      - GENERIC_TIMEZONE=UTC
+      - N8N_PORT=5678
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false   # lets the engine read the settings in .env
+      - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/.n8n-files
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_SECURE_COOKIE=false              # you are on http://localhost, not https
+      - TZ=${TZ:-UTC}
+      - GENERIC_TIMEZONE=${TZ:-UTC}
+    entrypoint: ["/bin/sh", "/kit/docker/start.sh"]
     volumes:
-      - ./n8n-data:/home/node/.n8n
-      - ./n8n-files:/home/node/.n8n-files
+      - n8n_data:/home/node/.n8n             # n8n database + credentials
+      - ./n8n-files:/home/node/.n8n-files    # your leads, sent log and cockpit data (plain files you can open)
+      - ./workflows:/kit/workflows:ro
+      - ./seed:/kit/seed:ro
+      - ./docker:/kit/docker:ro
+
+volumes:
+  n8n_data:

@@ -1,0 +1,9 @@
+lead_id,email,first_name,company,website,domain,location,angle,source,found_by,persona_score,status,added_date,decision_date,note
+D001,hello@northwind-creative.example,Amira,Northwind Creative,https://northwind-creative.example,northwind-creative.example,"Dubai, UAE","Small design studio, turns down dev-heavy projects",demo,,9,approved,2026-01-05,2026-01-06,demo lead (fake)
+D002,studio@brightpixel.example,Omar,Bright Pixel,https://brightpixel.example,brightpixel.example,"Riyadh, KSA","Branding agency, no in-house developers",demo,,8,approved,2026-01-05,2026-01-06,demo lead (fake)
+D003,team@lanternlabs.example,Priya,Lantern Labs,https://lanternlabs.example,lanternlabs.example,"Bengaluru, India","Growing web studio, hiring pressure",demo,,6,approved,2026-01-05,2026-01-06,demo lead (fake)
+D004,hi@fjordworks.example,Sofie,Fjord Works,https://fjordworks.example,fjordworks.example,"Berlin, Germany","UX consultancy, capacity-constrained",demo,,9,review,2026-01-05,,demo lead (fake)
+D005,hello@copperkite.example,Daniel,Copper Kite,https://copperkite.example,copperkite.example,"London, UK","E-commerce agency, Shopify heavy",demo,,7,review,2026-01-05,,demo lead (fake)
+D006,office@sandstonedigital.example,Layla,Sandstone Digital,https://sandstonedigital.example,sandstonedigital.example,"Doha, Qatar","Performance marketing, outsources builds",demo,,8,review,2026-01-05,,demo lead (fake)
+D007,contact@harborandgrain.example,Mia,Harbor & Grain,https://harborandgrain.example,harborandgrain.example,"New York, USA","Brand studio, wants SaaS capability",demo,,5,review,2026-01-05,,demo lead (fake)
+D008,,Jon,Quiet Meadow Media,https://quietmeadow.example,quietmeadow.example,"Manchester, UK","No public email found yet",demo,,7,no_email,2026-01-05,,demo lead (fake)
